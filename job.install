@@ -22,10 +22,15 @@ function job_install() {
     node_type_save($type);
     node_add_body_field($type);
 
+    # attach webform
+    $webform_types = variable_get('webform_node_types', array());
+    if (!in_array('job', $webform_types)) {
+      $webform_types[] =  'job';
+    }
+    variable_set('webform_node_types', $webform_types);
   }
   # add field_job_command
   $field = field_info_field('field_job_command');
-  $instance = field_info_instance('node', 'job_command', $type);
   if (!$field) {
     $field = array(
       'field_name' => 'field_job_command',
@@ -37,8 +42,6 @@ function job_install() {
       ),
     ); 
     $field = field_create_field($field);
-  }
-  if (!$instance) {
     $instance = array(
       'bundle' => 'job',
       'default_value' => array(
@@ -85,7 +88,6 @@ function job_install() {
   }
   # add field_job_type
   $field = field_info_field('field_job_type');
-  $instance = field_info_instance('node', 'job_type', $type);
   if (!$field) {
     $field = array(
       'field_name' => 'field_job_type',
@@ -101,8 +103,6 @@ function job_install() {
       ),
     ); 
     $field = field_create_field($field);
-  }
-  if (!$instance) {
     $instance = array(
       'bundle' => 'job',
       'default_value' => NULL,

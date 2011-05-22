@@ -14,16 +14,27 @@ function job_menu() {
   return $items;
 }
 
+/**
+* Implementation of hook_perm()
+*/
+function job_perm() {
+  return array('administer jobs');
+}
+
 function job_form_alter(&$form, $form_state, $form_id) {
   if ($form_id == 'job_node_form') {
     # available weform fields
     $available_webform_fields = array();
     $found_results_field=0;
-    foreach ($form['webform']['#value']['components'] as $component) {
-      if ($component['form_key']=='results') { continue; }
-      $available_webform_fields[] = '%'.$component['form_key'];
+    if (isset($form['webform'])) {
+      foreach ($form['webform']['#value']['components'] as $component) {
+        if ($component['form_key']=='results') { continue; }
+        $available_webform_fields[] = '%'.$component['form_key'];
+      }
+      $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
+    } else {
+      drupal_set_message(t('Webform must be enabled for the Job module to work properly'), 'error');
     }
-    $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
   }
 }
 
