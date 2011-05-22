@@ -14,6 +14,19 @@ function job_menu() {
   return $items;
 }
 
+function job_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'job_node_form') {
+    # available weform fields
+    $available_webform_fields = array();
+    $found_results_field=0;
+    foreach ($form['webform']['#value']['components'] as $component) {
+      if ($component['form_key']=='results') { continue; }
+      $available_webform_fields[] = '%'.$component['form_key'];
+    }
+    $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
+  }
+}
+
 function job_webform_submission_presave($node, &$submission) {
   if (0) {  # XXX validate job here!
     $job_results = 'Error validating job';
@@ -23,14 +36,15 @@ function job_webform_submission_presave($node, &$submission) {
   $job_results = 'Scheduled for execution';
   $job_type = $node->field_job_type['und'][0]['value'];
   $job_cmd = $node->field_job_command['und'][0]['value'];
-  foreach ($submission->data as $argid => $argdata_messy) {
-      $argdata = $argdata_messy['value'][0];
-      $job_cmd = preg_replace('/%'.$argid.'/', $argdata, $job_cmd);
+  foreach (array_keys($mapping) as $fieldname) {
+      $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
+      $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
   }
   if (strcmp($job_type, 'shell')==0) {
     $job_output = `$job_cmd`;
     $job_results = 'Successful shell job: '.$job_output;
   } else if (strcmp($job_type, 'php')==0) {
+    unset($job_output);
     eval($job_cmd);
     if (isset($job_output)) { 
       $job_results = 'Successful PHP job: '.$job_output;
@@ -42,7 +56,7 @@ function job_webform_submission_presave($node, &$submission) {
     $job_results = 'Error scheduling job: unknown job type';
   }
   $job_results .= "\nCommand: ".$job_cmd;
-  dd($job_results); # XXX 
+  watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
 }
 
@@ -54,7 +68,6 @@ function job_webform_submission_actions($node, $submission) {
       'query' => drupal_get_destination(),
     );
   }
-
   return $actions;
 }
 
@@ -63,7 +76,6 @@ function job_webform_submission_load(&$submissions) {
     $submissions[$sid]->new_property = 'fruit';
   }
 }
-
 
 function job_webform_submission_render_alter(&$renderable) {
   # dd($renderable);
@@ -78,5 +90,4 @@ function _job_webform_component_mapping($node) {
   }
   return $mapping;
 }
-
 

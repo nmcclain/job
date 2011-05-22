@@ -1,0 +1,151 @@
+<?php
+
+/**
+ *  
+ */
+
+/**
+ * Implements hook_install().
+ */
+function job_install() {
+  $type = node_type_get_type('job');
+  if (!$type) {
+    $type = node_type_set_defaults(array(
+      'type' => 'job',
+      'name' => t('Job'),
+      'base' => 'node_content',
+      'description' => t('Manage execution of external jobs, such as XXX and XXX.'),
+      'locked' => 0,
+      'custom' => 1,
+      'modified' => 1,
+    ));
+    node_type_save($type);
+    node_add_body_field($type);
+
+  }
+  # add field_job_command
+  $field = field_info_field('field_job_command');
+  $instance = field_info_instance('node', 'job_command', $type);
+  if (!$field) {
+    $field = array(
+      'field_name' => 'field_job_command',
+      'type' => 'text',
+      'active' => '1',
+      'cardinality' => '1',
+      'settings' => array(
+        'max_length' => '255',
+      ),
+    ); 
+    $field = field_create_field($field);
+  }
+  if (!$instance) {
+    $instance = array(
+      'bundle' => 'job',
+      'default_value' => array(
+        0 => array(
+          'value' => '/bin/echo "hello world"',
+        ),
+      ),
+      'deleted' => '0',
+      'description' => '',
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'module' => 'text',
+          'settings' => array(),
+          'type' => 'text_default',
+          'weight' => 2,
+        ),
+        'teaser' => array(
+          'label' => 'above',
+          'settings' => array(),
+          'type' => 'hidden',
+          'weight' => 0,
+        ),
+      ),
+      'entity_type' => 'node',
+      'field_name' => 'field_job_command',
+      'label' => 'Command',
+      'required' => 1,
+      'settings' => array(
+        'text_processing' => '0',
+        'user_register_form' => FALSE,
+      ),
+      'widget' => array(
+        'active' => 1,
+        'module' => 'text',
+        'settings' => array(
+          'size' => '60',
+        ),
+        'type' => 'text_textfield',
+        'weight' => '-2',
+      ),
+    );
+    field_create_instance($instance);
+  }
+  # add field_job_type
+  $field = field_info_field('field_job_type');
+  $instance = field_info_instance('node', 'job_type', $type);
+  if (!$field) {
+    $field = array(
+      'field_name' => 'field_job_type',
+      'type' => 'list_text',
+      'cardinality' => '1',
+      'active' => '1',
+      'settings' => array(
+        'allowed_values' => array(
+          'php' => 'PHP Function',
+          'shell' => 'Shell Command',
+        ),
+        'allowed_values_function' => '',
+      ),
+    ); 
+    $field = field_create_field($field);
+  }
+  if (!$instance) {
+    $instance = array(
+      'bundle' => 'job',
+      'default_value' => NULL,
+      'deleted' => '0',
+      'description' => '',
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'module' => 'list',
+          'settings' => array(),
+          'type' => 'list_default',
+          'weight' => 3,
+        ),
+        'teaser' => array(
+          'label' => 'above',
+          'settings' => array(),
+          'type' => 'hidden',
+          'weight' => 0,
+        ),
+      ),
+      'entity_type' => 'node',
+      'field_name' => 'field_job_type',
+      'label' => 'Job Type',
+      'required' => 1,
+      'settings' => array(
+        'user_register_form' => FALSE,
+      ),
+      'widget' => array(
+        'active' => 1,
+        'module' => 'options',
+        'settings' => array(),
+        'type' => 'options_buttons',
+        'weight' => '-1',
+      ),
+    );
+    field_create_instance($instance);
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function job_uninstall() {
+}
+
+
