@@ -1,0 +1,190 @@
+<?php
+
+/**
+ *  aws_account content type and fields
+ */
+$type = node_type_get_type('aws_account');
+if (!$type) {
+  $type = node_type_set_defaults(array(
+    'type' => 'aws_account',
+    'name' => t('AWS Account'),
+    'base' => 'node_content',
+    'description' => t('Amazon AWS account credentials used by Jobs'),
+    'locked' => 0,
+    'custom' => 1,
+    'modified' => 1,
+  ));
+  node_type_save($type);
+  node_add_body_field($type);
+}
+# add field_aws_accountnumber
+$field = field_info_field('field_aws_accountnumber');
+if (!$field) {
+  $field = array(
+    'field_name' => 'field_aws_accountnumber',
+    'type' => 'text',
+    'active' => '1',
+    'cardinality' => '1',
+    'settings' => array(
+      'max_length' => '255',
+    ),
+  ); 
+  $field = field_create_field($field);
+  $instance = array(
+    'bundle' => 'job',
+    'default_value' => array(
+      0 => array(
+        'value' => '',
+      ),
+    ),
+    'deleted' => '0',
+    'description' => 'Your AWS Account Number.',
+    'display' => array(
+      'default' => array(
+        'label' => 'inline',
+        'module' => 'text',
+        'settings' => array(),
+        'type' => 'text_default',
+        'weight' => 2,
+      ),
+      'teaser' => array(
+        'label' => 'inline',
+        'settings' => array(),
+        'type' => 'hidden',
+        'weight' => 0,
+      ),
+    ),
+    'entity_type' => 'node',
+    'field_name' => 'field_aws_accountnumber',
+    'label' => 'Command',
+    'required' => 1,
+    'settings' => array(
+      'text_processing' => '0',
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'active' => 1,
+      'module' => 'text',
+      'settings' => array(
+        'size' => '60',
+      ),
+      'type' => 'text_textfield',
+      'weight' => '-2',
+    ),
+  );
+  field_create_instance($instance);
+}
+# add field_aws_accesskeyid
+$field = field_info_field('field_aws_accesskeyid');
+if (!$field) {
+  $field = array(
+    'field_name' => 'field_aws_accesskeyid',
+    'type' => 'text',
+    'active' => '1',
+    'cardinality' => '1',
+    'settings' => array(
+      'max_length' => '255',
+    ),
+  ); 
+  $field = field_create_field($field);
+  $instance = array(
+    'bundle' => 'job',
+    'default_value' => array(
+      0 => array(
+        'value' => '',
+      ),
+    ),
+    'deleted' => '0',
+    'description' => 'Your AWS Access Key ID.',
+    'display' => array(
+      'default' => array(
+        'label' => 'inline',
+        'module' => 'text',
+        'settings' => array(),
+        'type' => 'text_default',
+        'weight' => 2,
+      ),
+      'teaser' => array(
+        'label' => 'inline',
+        'settings' => array(),
+        'type' => 'hidden',
+        'weight' => 0,
+      ),
+    ),
+    'entity_type' => 'node',
+    'field_name' => 'field_aws_accesskeyid',
+    'label' => 'Command',
+    'required' => 1,
+    'settings' => array(
+      'text_processing' => '0',
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'active' => 1,
+      'module' => 'text',
+      'settings' => array(
+        'size' => '60',
+      ),
+      'type' => 'text_textfield',
+      'weight' => '-2',
+    ),
+  );
+  field_create_instance($instance);
+}
+# add field_aws_secretaccesskey
+$field = field_info_field('field_aws_secretaccesskey');
+if (!$field) {
+  $field = array(
+    'field_name' => 'field_aws_secretaccesskey',
+    'type' => 'text',
+    'active' => '1',
+    'cardinality' => '1',
+    'settings' => array(
+      'max_length' => '255',
+    ),
+  ); 
+  $field = field_create_field($field);
+  $instance = array(
+    'bundle' => 'job',
+    'default_value' => array(
+      0 => array(
+        'value' => '',
+      ),
+    ),
+    'deleted' => '0',
+    'description' => 'Your AWS Secret Access Key.',
+    'display' => array(
+      'default' => array(
+        'label' => 'inline',
+        'module' => 'text',
+        'settings' => array(),
+        'type' => 'text_default',
+        'weight' => 2,
+      ),
+      'teaser' => array(
+        'label' => 'inline',
+        'settings' => array(),
+        'type' => 'hidden',
+        'weight' => 0,
+      ),
+    ),
+    'entity_type' => 'node',
+    'field_name' => 'field_aws_secretaccesskey',
+    'label' => 'Command',
+    'required' => 1,
+    'settings' => array(
+      'text_processing' => '0',
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'active' => 1,
+      'module' => 'text',
+      'settings' => array(
+        'size' => '60',
+      ),
+      'type' => 'text_textfield',
+      'weight' => '-2',
+    ),
+  );
+  field_create_instance($instance);
+}

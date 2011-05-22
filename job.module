@@ -22,19 +22,34 @@ function job_perm() {
 }
 
 function job_form_alter(&$form, $form_state, $form_id) {
-  if ($form_id == 'job_node_form') {
-    # available weform fields
-    $available_webform_fields = array();
-    $found_results_field=0;
-    if (isset($form['webform'])) {
-      foreach ($form['webform']['#value']['components'] as $component) {
-        if ($component['form_key']=='results') { continue; }
-        $available_webform_fields[] = '%'.$component['form_key'];
+  if (isset($form['#node']->type) and ($form['#node']->type == 'job')) {
+    # custom submit handler so our custom options lists can access data from webform components on previous form pages.
+    $form['#submit'][] = 'job_webform_multistep_submit';
+
+    # cleanup SESSION variables used for passing state to option lists
+    unset($_SESSION['job_aws_account']);
+
+    if ($form_id == 'job_node_form') {
+      # available weform fields
+      $available_webform_fields = array();
+      $found_results_field=0;
+      if (isset($form['webform'])) {
+        foreach ($form['webform']['#value']['components'] as $component) {
+          if ($component['form_key']=='results') { continue; }
+          $available_webform_fields[] = '%'.$component['form_key'];
+        }
+        $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
+      } else {
+        drupal_set_message(t('Webform must be enabled for the Job module to work properly'), 'error');
       }
-      $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
-    } else {
-      drupal_set_message(t('Webform must be enabled for the Job module to work properly'), 'error');
     }
+  }
+}
+
+function job_webform_multistep_submit($form, &$form_state) {
+  if (isset($form['submitted']['aws_account'])) {
+    # put the aws account info somewhere it is accessible to webform_select_options_info() - XXX is there a better way to do this?
+    $_SESSION['job_aws_account'] = $form['submitted']['aws_account']['#value'];
   }
 }
 
@@ -42,12 +57,16 @@ function job_webform_submission_presave($node, &$submission) {
   if (0) {  # XXX validate job here!
     $job_results = 'Error validating job';
   }
+
   $mapping = _job_webform_component_mapping($node);
   # XXX schedule job here!
   $job_results = 'Scheduled for execution';
   $job_type = $node->field_job_type['und'][0]['value'];
   $job_cmd = $node->field_job_command['und'][0]['value'];
   foreach (array_keys($mapping) as $fieldname) {
+      # XXX handle special fields here
+      # XXX skip pagebreaks
+
       $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
       $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
   }
@@ -110,9 +129,15 @@ function job_webform_select_options_info() {
     'options callback' => 'list_aws_accounts',
   );
 
-  $items['awssnapshot'] = array(
-    'title' => t('AWS EBS Snapshot'),
+  $items['awssnapshots'] = array(
+    'title' => t('AWS EBS Snapshots'),
     'options callback' => 'list_aws_snapshots',
+    # 'options arguments' => array('testarg', 'foo'),
+  );
+
+  $items['awsvolumes'] = array(
+    'title' => t('AWS EBS Volumes'),
+    'options callback' => 'list_aws_volumes',
   );
 
   return $items;
@@ -125,17 +150,56 @@ function list_aws_accounts() {
     ->condition('type', array('aws_account'), 'IN')
     ->execute();
   foreach ($results as $result) {
-    $accounts[$result->title] = $result->title;
+    $accounts[$result->nid] = $result->title;
   }
   return $accounts;
 }
 
-function list_aws_shapshots() {
-  return array(
-    'snap-1234' => 'snap-1234',
-    'snap-4444' => 'snap-4444',
-    'snap-666' => 'snap-666',
-    'snap-9608' => 'snap-9608',
-  );
+function list_aws_snapshots($component, $flat, $filter, $arguments) {
+  $opts=array();
+  if (isset($_SESSION['job_aws_account'])) {
+    $node = node_load($_SESSION['job_aws_account']);
+    if ($node) {
+      dd('XXX LIST SNAPS FOR ACCOUNT '.$node->title);
+      require_once 'sdk-1.3.3/sdk.class.php';
+
+      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+      $response = $ec2->describe_snapshots();
+
+      foreach ( $response->body->snapshotSet->item as $snapshot) {
+        $snapshotId =  (array)$snapshot->snapshotId;
+        $opts[$snapshotId[0]] = $snapshotId[0].': '.$snapshot->volumeId[0].' ('.$snapshot->startTime[0].')';
+      }
+    } else {
+      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+    }
+  } else {
+      drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+  }
+  return $opts;
+}
+
+
+function list_aws_volumes($component, $flat, $filter, $arguments) {
+  $opts=array();
+  if (isset($_SESSION['job_aws_account'])) {
+    $node = node_load($_SESSION['job_aws_account']);
+    if ($node) {
+      require_once 'sdk-1.3.3/sdk.class.php';
+
+      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+      $response = $ec2->describe_volumes();
+
+      foreach ( $response->body->volumeSet->item as $volume) {
+        $volumeId = (array)$volume->volumeId;
+        $opts[$volumeId[0]] = $volumeId[0].': '.$volume->size.'GB ('.$volume->createTime.')';
+      }
+    } else {
+      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+    }
+  } else {
+      drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+  }
+  return $opts;
 }
 
