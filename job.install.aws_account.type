@@ -31,7 +31,7 @@ if (!$field) {
   ); 
   $field = field_create_field($field);
   $instance = array(
-    'bundle' => 'job',
+    'bundle' => 'aws_account',
     'default_value' => array(
       0 => array(
         'value' => '',
@@ -56,7 +56,7 @@ if (!$field) {
     ),
     'entity_type' => 'node',
     'field_name' => 'field_aws_accountnumber',
-    'label' => 'Command',
+    'label' => 'AWS Account Number',
     'required' => 1,
     'settings' => array(
       'text_processing' => '0',
@@ -88,7 +88,7 @@ if (!$field) {
   ); 
   $field = field_create_field($field);
   $instance = array(
-    'bundle' => 'job',
+    'bundle' => 'aws_account',
     'default_value' => array(
       0 => array(
         'value' => '',
@@ -113,7 +113,7 @@ if (!$field) {
     ),
     'entity_type' => 'node',
     'field_name' => 'field_aws_accesskeyid',
-    'label' => 'Command',
+    'label' => 'AWS Access Key ID',
     'required' => 1,
     'settings' => array(
       'text_processing' => '0',
@@ -145,7 +145,7 @@ if (!$field) {
   ); 
   $field = field_create_field($field);
   $instance = array(
-    'bundle' => 'job',
+    'bundle' => 'aws_account',
     'default_value' => array(
       0 => array(
         'value' => '',
@@ -170,7 +170,7 @@ if (!$field) {
     ),
     'entity_type' => 'node',
     'field_name' => 'field_aws_secretaccesskey',
-    'label' => 'Command',
+    'label' => 'AWS Secret Access Key',
     'required' => 1,
     'settings' => array(
       'text_processing' => '0',

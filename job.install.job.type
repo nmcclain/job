@@ -45,7 +45,7 @@ if (!$field) {
       ),
     ),
     'deleted' => '0',
-    'description' => '',
+    'description' => 'If you choose a Shell Command, the exit status will be used to determine success.  If you choose a PHP, you should set the variable $job_output with your output - use FALSE or 0 to indicate a failure.',
     'display' => array(
       'default' => array(
         'label' => 'above',
@@ -63,7 +63,7 @@ if (!$field) {
     ),
     'entity_type' => 'node',
     'field_name' => 'field_job_command',
-    'label' => 'Command',
+    'label' => 'Shell Command or PHP',
     'required' => 1,
     'settings' => array(
       'text_processing' => '0',

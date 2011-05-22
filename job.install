@@ -8,7 +8,10 @@
  * Implements hook_install().
  */
 function job_install() {
-  module_load_include('inc', 'job', 'job.install.types');
+  include('job.install.aws_account.type');
+  include('job.install.job.type');
+  include('job.install.ssh_credentials.type');
+
 }
 
 /**
