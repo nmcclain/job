@@ -4,6 +4,8 @@ description = XXX
 core = 7.x
 package = Job
 dependencies[] = webform
-files[] = job.install
 files[] = job.module
-
+files[] = job.install
+files[] = job.install.aws_account.type
+files[] = job.install.job.type
+files[] = job.install.ssh_credentials.type
