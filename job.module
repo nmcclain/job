@@ -102,3 +102,40 @@ function _job_webform_component_mapping($node) {
   return $mapping;
 }
 
+function job_webform_select_options_info() {
+  $items = array();
+
+  $items['awsaccount'] = array(
+    'title' => t('AWS Account'),
+    'options callback' => 'list_aws_accounts',
+  );
+
+  $items['awssnapshot'] = array(
+    'title' => t('AWS EBS Snapshot'),
+    'options callback' => 'list_aws_snapshots',
+  );
+
+  return $items;
+}
+
+function list_aws_accounts() {
+  $accounts = array();
+  $results = db_select('node', 'n')
+    ->fields('n', array('nid','title'))
+    ->condition('type', array('aws_account'), 'IN')
+    ->execute();
+  foreach ($results as $result) {
+    $accounts[$result->title] = $result->title;
+  }
+  return $accounts;
+}
+
+function list_aws_shapshots() {
+  return array(
+    'snap-1234' => 'snap-1234',
+    'snap-4444' => 'snap-4444',
+    'snap-666' => 'snap-666',
+    'snap-9608' => 'snap-9608',
+  );
+}
+
