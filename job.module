@@ -5,18 +5,12 @@
  * by leveraging the power of the webform module.
  */
 
+require_once('aws-php-sdk-1.3.3/sdk.class.php');
+require_once('jobs/jobs.aws');
+
 /**
- * Implements hook_menu().
+ * Implementation of hook_perm()
  */
-function job_menu() {
-  $items = array();
-
-  return $items;
-}
-
-/**
-* Implementation of hook_perm()
-*/
 function job_perm() {
   return array('administer jobs');
 }
@@ -36,7 +30,12 @@ function job_form_alter(&$form, $form_state, $form_id) {
       if (isset($form['webform'])) {
         foreach ($form['webform']['#value']['components'] as $component) {
           if ($component['form_key']=='results') { continue; }
-          $available_webform_fields[] = '%'.$component['form_key'];
+          if ($component['type']=='pagebreak') { continue; }
+          if ($component['form_key']=='ssh_account') {
+            $available_webform_fields[] = '%'.'ssh_privatekey_path';
+          } else { 
+            $available_webform_fields[] = '%'.$component['form_key'];
+          }
         }
         $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
       } else {
@@ -59,16 +58,29 @@ function job_webform_submission_presave($node, &$submission) {
   }
 
   $mapping = _job_webform_component_mapping($node);
-  # XXX schedule job here!
+  # schedule job here!
   $job_results = 'Scheduled for execution';
   $job_type = $node->field_job_type['und'][0]['value'];
   $job_cmd = $node->field_job_command['und'][0]['value'];
   foreach (array_keys($mapping) as $fieldname) {
-      # XXX handle special fields here
-      # XXX skip pagebreaks
+      if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
+        $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
+        if ($fieldname == 'ssh_account') {
+          # create temporary file with SSH private key
+          $ssh_credentials_node = node_load($argdata);
+          $key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
+          $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
+          unlink($tmpdname);
+          mkdir($tmpdname, 0700);
+          $key_filename = $tmpdname.'/id_dsa';
+          file_put_contents($key_filename, $key_contents);
+          chmod($key_filename, 0600);
 
-      $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
-      $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
+          $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $key_filename, $job_cmd);
+        } else {
+          $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
+        }
+      }
   }
   if (strcmp($job_type, 'shell')==0) {
     $job_output = `$job_cmd`;
@@ -85,9 +97,152 @@ function job_webform_submission_presave($node, &$submission) {
   } else {
     $job_results = 'Error scheduling job: unknown job type';
   }
-  $job_results .= "\nCommand: ".$job_cmd;
+
+  # cleanup
+  if (isset($key_filename)) {
+    unlink($key_filename);
+    rmdir(dirname($key_filename));
+  }
+
+  # results
+  $job_results .= "\n\nCommand: ".$job_cmd;
   watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
+}
+
+function _job_webform_component_mapping($node) {
+  $mapping = array();
+  $components = $node->webform['components'];
+  foreach ($components as $i => $component) {
+    $key = $component['form_key'];
+    $mapping[$key] = $i;
+  }
+  return $mapping;
+}
+
+function job_webform_select_options_info() {
+  $items = array();
+  $items['awsaccount'] = array(
+    'title' => t('AWS Account'),
+    'options callback' => 'list_aws_accounts',
+  );
+  $items['sshaccount'] = array(
+    'title' => t('SSH Account'),
+    'options callback' => 'list_ssh_accounts',
+  );
+  $items['awssnapshots'] = array(
+    'title' => t('AWS EBS Snapshots'),
+    'options callback' => 'list_aws_snapshots',
+    # 'options arguments' => array('testarg', 'foo'),
+  );
+  $items['awsvolumes'] = array(
+    'title' => t('AWS EBS Volumes'),
+    'options callback' => 'list_aws_volumes',
+  );
+  $items['awsinstances'] = array(
+    'title' => t('AWS EC2 Instances'),
+    'options callback' => 'list_aws_instances',
+  );
+  return $items;
+}
+
+function list_aws_accounts() {
+  $accounts = array();
+  $results = db_select('node', 'n')
+    ->fields('n', array('nid','title'))
+    ->condition('type', array('aws_account'), 'IN')
+    ->execute();
+  foreach ($results as $result) {
+    $accounts[$result->nid] = $result->title;
+  }
+  return $accounts;
+}
+
+function list_ssh_accounts() {
+  $accounts = array();
+  $results = db_select('node', 'n')
+    ->fields('n', array('nid','title'))
+    ->condition('type', array('ssh_credentials'), 'IN')
+    ->execute();
+  foreach ($results as $result) {
+    $accounts[$result->nid] = $result->title;
+  }
+  return $accounts;
+}
+
+function list_aws_snapshots($component, $flat, $filter, $arguments) {
+  $opts=array();
+  if (isset($_SESSION['job_aws_account'])) {
+    $node = node_load($_SESSION['job_aws_account']);
+    if ($node) {
+      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+      $response = $ec2->describe_snapshots();
+
+      foreach ( $response->body->snapshotSet->item as $snapshot) {
+        $snapshotId =  (string)$snapshot->snapshotId;
+        $opts[$snapshotId] = $snapshotId.': '.$snapshot->volumeId[0].' ('.$snapshot->startTime[0].')';
+      }
+    } else {
+      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+    }
+  } else {
+      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+  }
+  return $opts;
+}
+
+
+function list_aws_volumes($component, $flat, $filter, $arguments) {
+  $opts=array();
+  if (isset($_SESSION['job_aws_account'])) {
+    $node = node_load($_SESSION['job_aws_account']);
+    if ($node) {
+
+      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+      $response = $ec2->describe_volumes();
+
+      foreach ( $response->body->volumeSet->item as $volume) {
+        $volumeId = (string)$volume->volumeId;
+        $opts[$volumeId] = $volumeId.': '.$volume->size.'GB ('.$volume->createTime.')';
+      }
+    } else {
+      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+    }
+  } else {
+      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+  }
+  return $opts;
+}
+
+function list_aws_instances($component, $flat, $filter, $arguments) {
+  $opts=array();
+  if (isset($_SESSION['job_aws_account'])) {
+    $node = node_load($_SESSION['job_aws_account']);
+    if ($node) {
+      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+      $response = $ec2->describe_instances();
+
+      foreach ( $response->body->reservationSet->item as $reservation) {
+        foreach ( $reservation->instancesSet->item as $instance) {
+          $instanceId = (string)$instance->instanceId;
+          $opts[$instanceId] = $instanceId.': '.$instance->instanceType.' ('.$instance->launchTime.')';
+        }
+      }
+    } else {
+      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+    }
+  } else {
+      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+  }
+  return $opts;
+}
+
+/* unused/testing 
+
+function job_menu() {
+  $items = array();
+
+  return $items;
 }
 
 function job_webform_submission_actions($node, $submission) {
@@ -110,96 +265,5 @@ function job_webform_submission_load(&$submissions) {
 function job_webform_submission_render_alter(&$renderable) {
   # dd($renderable);
 }
-
-function _job_webform_component_mapping($node) {
-  $mapping = array();
-  $components = $node->webform['components'];
-  foreach ($components as $i => $component) {
-    $key = $component['form_key'];
-    $mapping[$key] = $i;
-  }
-  return $mapping;
-}
-
-function job_webform_select_options_info() {
-  $items = array();
-
-  $items['awsaccount'] = array(
-    'title' => t('AWS Account'),
-    'options callback' => 'list_aws_accounts',
-  );
-
-  $items['awssnapshots'] = array(
-    'title' => t('AWS EBS Snapshots'),
-    'options callback' => 'list_aws_snapshots',
-    # 'options arguments' => array('testarg', 'foo'),
-  );
-
-  $items['awsvolumes'] = array(
-    'title' => t('AWS EBS Volumes'),
-    'options callback' => 'list_aws_volumes',
-  );
-
-  return $items;
-}
-
-function list_aws_accounts() {
-  $accounts = array();
-  $results = db_select('node', 'n')
-    ->fields('n', array('nid','title'))
-    ->condition('type', array('aws_account'), 'IN')
-    ->execute();
-  foreach ($results as $result) {
-    $accounts[$result->nid] = $result->title;
-  }
-  return $accounts;
-}
-
-function list_aws_snapshots($component, $flat, $filter, $arguments) {
-  $opts=array();
-  if (isset($_SESSION['job_aws_account'])) {
-    $node = node_load($_SESSION['job_aws_account']);
-    if ($node) {
-      dd('XXX LIST SNAPS FOR ACCOUNT '.$node->title);
-      require_once 'aws-php-sdk-1.3.3/sdk.class.php';
-
-      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
-      $response = $ec2->describe_snapshots();
-
-      foreach ( $response->body->snapshotSet->item as $snapshot) {
-        $snapshotId =  (array)$snapshot->snapshotId;
-        $opts[$snapshotId[0]] = $snapshotId[0].': '.$snapshot->volumeId[0].' ('.$snapshot->startTime[0].')';
-      }
-    } else {
-      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-    }
-  } else {
-      drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-  }
-  return $opts;
-}
-
-
-function list_aws_volumes($component, $flat, $filter, $arguments) {
-  $opts=array();
-  if (isset($_SESSION['job_aws_account'])) {
-    $node = node_load($_SESSION['job_aws_account']);
-    if ($node) {
-      require_once 'aws-php-sdk-1.3.3/sdk.class.php';
-
-      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
-      $response = $ec2->describe_volumes();
-
-      foreach ( $response->body->volumeSet->item as $volume) {
-        $volumeId = (array)$volume->volumeId;
-        $opts[$volumeId[0]] = $volumeId[0].': '.$volume->size.'GB ('.$volume->createTime.')';
-      }
-    } else {
-      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-    }
-  } else {
-      drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-  }
-  return $opts;
-}
+*/
 
