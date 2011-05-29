@@ -28,11 +28,17 @@ function job_form_alter(&$form, $form_state, $form_id) {
       $available_webform_fields = array();
       $found_results_field=0;
       if (isset($form['webform'])) {
+        # XXX switch to "type" where you're using a form_key
         foreach ($form['webform']['#value']['components'] as $component) {
           if ($component['form_key']=='results') { continue; }
           if ($component['type']=='pagebreak') { continue; }
           if ($component['form_key']=='ssh_account') {
             $available_webform_fields[] = '%'.'ssh_privatekey_path';
+            $available_webform_fields[] = '%'.'ssh_username';
+          } else if ($component['form_key']=='ssh_hostname') {
+            $available_webform_fields[] = '%'.'ssh_privatekey_path';
+            $available_webform_fields[] = '%'.'ssh_username';
+            $available_webform_fields[] = '%'.'ssh_hostname';
           } else { 
             $available_webform_fields[] = '%'.$component['form_key'];
           }
@@ -65,18 +71,39 @@ function job_webform_submission_presave($node, &$submission) {
   foreach (array_keys($mapping) as $fieldname) {
       if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
         $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
-        if ($fieldname == 'ssh_account') {
+        if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and ($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'jobhost')) {
+          # jobhost -> ssh key lookup
+          $host_node = node_load($argdata); # XXX add support for multiple hosts - for now ONLY single hosts allowed.
+          
           # create temporary file with SSH private key
-          $ssh_credentials_node = node_load($argdata);
-          $key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
+          $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
+          $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
+          $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
           $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
           unlink($tmpdname);
           mkdir($tmpdname, 0700);
-          $key_filename = $tmpdname.'/id_dsa';
-          file_put_contents($key_filename, $key_contents);
-          chmod($key_filename, 0600);
+          $ssh_key_filename = $tmpdname.'/id_dsa';
+          file_put_contents($ssh_key_filename, $ssh_key_contents);
+          chmod($ssh_key_filename, 0600);
 
-          $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $key_filename, $job_cmd);
+          $job_cmd = preg_replace('/%'.'ssh_hostname'.'/', $host_node->title, $job_cmd);
+          $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $job_cmd);
+          $job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $job_cmd);
+
+        } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and ($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'sshaccount')) {
+          # create temporary file with SSH private key
+          $ssh_credentials_node = node_load($argdata);
+          $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
+          $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
+          $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
+          unlink($tmpdname);
+          mkdir($tmpdname, 0700);
+          $ssh_key_filename = $tmpdname.'/id_dsa';
+          file_put_contents($ssh_key_filename, $ssh_key_contents);
+          chmod($ssh_key_filename, 0600);
+
+          $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $job_cmd);
+          $job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $job_cmd);
         } else {
           $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
         }
@@ -100,15 +127,21 @@ function job_webform_submission_presave($node, &$submission) {
   }
 
   # cleanup
-  if (isset($key_filename)) {
-    unlink($key_filename);
-    rmdir(dirname($key_filename));
+  if (isset($ssh_key_filename)) {
+    unlink($ssh_key_filename);
+    rmdir(dirname($ssh_key_filename));
   }
 
   # results
   $job_results .= "\n\nCommand: ".$job_cmd;
   watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
+
+}
+
+function job_webform_submission_insert($node, $submission) {
+  drupal_set_message(t('Job complete!'), 'notice');
+  drupal_goto('node/'.$node->nid.'/submission/'.$submission->sid);
 }
 
 function _job_webform_component_mapping($node) {
@@ -130,6 +163,10 @@ function job_webform_select_options_info() {
   $items['sshaccount'] = array(
     'title' => t('SSH Account'),
     'options callback' => 'list_ssh_accounts',
+  );
+  $items['jobhost'] = array(
+    'title' => t('Job Hosts'),
+    'options callback' => 'list_job_hosts',
   );
   $items['awssnapshots'] = array(
     'title' => t('AWS EBS Snapshots'),
@@ -169,6 +206,18 @@ function list_ssh_accounts() {
     $accounts[$result->nid] = $result->title;
   }
   return $accounts;
+}
+
+function list_job_hosts() {
+  $hosts = array();
+  $results = db_select('node', 'n')
+    ->fields('n', array('nid','title'))
+    ->condition('type', array('job_host'), 'IN')
+    ->execute();
+  foreach ($results as $result) {
+    $hosts[$result->nid] = $result->title;
+  }
+  return $hosts;
 }
 
 function list_aws_snapshots($component, $flat, $filter, $arguments) {
