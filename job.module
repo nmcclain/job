@@ -83,7 +83,8 @@ function job_webform_submission_presave($node, &$submission) {
       }
   }
   if (strcmp($job_type, 'shell')==0) {
-    $job_output = `$job_cmd`;
+    $job_output = shell_exec($job_cmd." 2>&1");
+    # XXX check for success/fail here 
     $job_results = 'Successful shell job: '.$job_output;
   } else if (strcmp($job_type, 'php')==0) {
     unset($job_output);
