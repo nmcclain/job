@@ -39,6 +39,8 @@ function job_form_alter(&$form, $form_state, $form_id) {
             $available_webform_fields[] = '%'.'ssh_privatekey_path';
             $available_webform_fields[] = '%'.'ssh_username';
             $available_webform_fields[] = '%'.'ssh_hostname';
+          } else if (($component['type']=='textarea') and ($component['form_key'] == 'remote_php_script_file')) {
+            $available_webform_fields[] = '%'.'script_filename';
           } else { 
             $available_webform_fields[] = '%'.$component['form_key'];
           }
@@ -67,28 +69,42 @@ function job_webform_submission_presave($node, &$submission) {
   # schedule job here!
   $job_results = 'Scheduled for execution';
   $job_type = $node->field_job_type['und'][0]['value'];
-  $job_cmd = $node->field_job_command['und'][0]['value'];
+  $job_cmd = trim($node->field_job_command['und'][0]['value']);
+
+  $files_to_cleanup = array();
+  $dirs_to_cleanup = array();
   foreach (array_keys($mapping) as $fieldname) {
       if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
         $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
         if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and ($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'jobhost')) {
           # jobhost -> ssh key lookup
-          $host_node = node_load($argdata); # XXX add support for multiple hosts - for now ONLY single hosts allowed.
-          
-          # create temporary file with SSH private key
-          $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
-          $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
-          $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
-          $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
-          unlink($tmpdname);
-          mkdir($tmpdname, 0700);
-          $ssh_key_filename = $tmpdname.'/id_dsa';
-          file_put_contents($ssh_key_filename, $ssh_key_contents);
-          chmod($ssh_key_filename, 0600);
+          $host_array= $submission->data[$mapping[$fieldname]]['value'];
+          $host_command_array= array();
+          foreach ( $host_array as $host_nodeid) {
+            $host_job_cmd = $job_cmd;
+            $host_node = node_load($host_nodeid);
+            
+            # create temporary file with SSH private key
+            $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
+            $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
+            $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
+            $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
+            unlink($tmpdname);
+            mkdir($tmpdname, 0700);
+            $dirs_to_cleanup[] = $tmpdname;
+            $ssh_key_filename = $tmpdname.'/id_dsa';
+            file_put_contents($ssh_key_filename, $ssh_key_contents);
+            $files_to_cleanup[] = $ssh_key_filename;
+            chmod($ssh_key_filename, 0600);
 
-          $job_cmd = preg_replace('/%'.'ssh_hostname'.'/', $host_node->title, $job_cmd);
-          $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $job_cmd);
-          $job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $job_cmd);
+            $host_job_cmd = preg_replace('/%'.'ssh_hostname'.'/', $host_node->title, $host_job_cmd);
+            $host_job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $host_job_cmd);
+            $host_job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $host_job_cmd);
+            $host_job_cmd = 'echo; echo HOST: '.$host_node->title.'; '. $host_job_cmd;
+            $host_command_array[] = $host_job_cmd;
+          }
+
+          $job_cmd = join(' ', $host_command_array);
 
         } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and ($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'sshaccount')) {
           # create temporary file with SSH private key
@@ -98,13 +114,30 @@ function job_webform_submission_presave($node, &$submission) {
           $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
           unlink($tmpdname);
           mkdir($tmpdname, 0700);
+          $dirs_to_cleanup[] = $tmpdname;
           $ssh_key_filename = $tmpdname.'/id_dsa';
+          $files_to_cleanup[] = $ssh_key_filename;
           file_put_contents($ssh_key_filename, $ssh_key_contents);
           chmod($ssh_key_filename, 0600);
 
           $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $job_cmd);
           $job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $job_cmd);
+
+        } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'textarea') and ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'remote_php_script_file')) { # XXX make this less britle
+          # create temporary file with PHP script
+          $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_phptmp");
+          unlink($tmpdname);
+          mkdir($tmpdname, 0700);
+          $dirs_to_cleanup[] = $tmpdname;
+          $script_filename = $tmpdname.'/drupal_job.php';
+          $script_code = "<?php\n\n".$submission->data[$mapping[$fieldname]]['value'][0];
+          file_put_contents($script_filename, $script_code);
+          $files_to_cleanup[] = $script_filename;
+          chmod($script_filename, 0700);
+
+          $job_cmd = preg_replace('/%'.'script_filename'.'/', $script_filename, $job_cmd);
         } else {
+
           $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
         }
       }
@@ -127,9 +160,11 @@ function job_webform_submission_presave($node, &$submission) {
   }
 
   # cleanup
-  if (isset($ssh_key_filename)) {
-    unlink($ssh_key_filename);
-    rmdir(dirname($ssh_key_filename));
+  foreach ($files_to_cleanup as $clean_me_up) {
+    unlink($clean_me_up);
+  }
+  foreach ($dirs_to_cleanup as $clean_me_up) {
+    rmdir($clean_me_up);
   }
 
   # results
@@ -138,10 +173,17 @@ function job_webform_submission_presave($node, &$submission) {
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
 }
 
+
+
+
+/* 
+Doing this with "form settings" rather than hooks:
+
 function job_webform_submission_insert($node, $submission) {
   drupal_set_message(t('Job complete!'), 'notice');
   drupal_goto('node/'.$node->nid.'/submission/'.$submission->sid);
 }
+*/
 
 function _job_webform_component_mapping($node) {
   $mapping = array();
