@@ -28,14 +28,14 @@ function job_form_alter(&$form, $form_state, $form_id) {
       $available_webform_fields = array();
       $found_results_field=0;
       if (isset($form['webform'])) {
-        # XXX switch to "type" where you're using a form_key
         foreach ($form['webform']['#value']['components'] as $component) {
           if ($component['form_key']=='results') { continue; }
           if ($component['type']=='pagebreak') { continue; }
-          if ($component['form_key']=='ssh_account') {
+          # Add custom token-like strings for command substitution
+          if (($component['type']=='select') and ($component['extra']['options_source'] == 'sshaccount')) {
             $available_webform_fields[] = '%'.'ssh_privatekey_path';
             $available_webform_fields[] = '%'.'ssh_username';
-          } else if ($component['form_key']=='ssh_hostname') {
+          } else if (($component['type']=='select') and ($component['extra']['options_source'] == 'jobhost')) {
             $available_webform_fields[] = '%'.'ssh_privatekey_path';
             $available_webform_fields[] = '%'.'ssh_username';
             $available_webform_fields[] = '%'.'ssh_hostname';
@@ -136,7 +136,6 @@ function job_webform_submission_presave($node, &$submission) {
   $job_results .= "\n\nCommand: ".$job_cmd;
   watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
-
 }
 
 function job_webform_submission_insert($node, $submission) {
