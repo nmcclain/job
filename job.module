@@ -32,18 +32,19 @@ function job_form_alter(&$form, $form_state, $form_id) {
           if ($component['form_key']=='results') { continue; }
           if ($component['type']=='pagebreak') { continue; }
           # Add custom token-like strings for command substitution
-          if (($component['type']=='select') and ($component['extra']['options_source'] == 'sshaccount')) {
-            $available_webform_fields[] = '%'.'ssh_privatekey_path';
-            $available_webform_fields[] = '%'.'ssh_username';
-          } else if (($component['type']=='select') and ($component['extra']['options_source'] == 'jobhost')) {
+          if (($component['type']=='select') and (($component['extra']['options_source'] == 'jobhost') or ($component['form_key'] == 'job_ssh_host'))) {
             $available_webform_fields[] = '%'.'ssh_privatekey_path';
             $available_webform_fields[] = '%'.'ssh_username';
             $available_webform_fields[] = '%'.'ssh_hostname';
-          } else if (($component['type']=='textarea') and ($component['form_key'] == 'remote_php_script_file')) {
-            $available_webform_fields[] = '%'.'script_filename';
+
+          } else if (($component['type']=='textarea') and ($component['form_key'] == 'job_webform_script_file')) {
+            $available_webform_fields[] = '%'.'webform_script_filename';
           } else { 
             $available_webform_fields[] = '%'.$component['form_key'];
           }
+        }
+        if (isset($form['field_job_scriptfile'])) {
+          $available_webform_fields[] = '%'.'script_filename';
         }
         $form['field_job_command']['und'][0]['value']['#description'] = t('The following Webform fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
       } else {
@@ -74,41 +75,19 @@ function job_webform_submission_presave($node, &$submission) {
   $files_to_cleanup = array();
   $dirs_to_cleanup = array();
   foreach (array_keys($mapping) as $fieldname) {
-      if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
-        $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
-        if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and ($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'jobhost')) {
-          # jobhost -> ssh key lookup
-          $host_array= $submission->data[$mapping[$fieldname]]['value'];
-          $host_command_array= array();
-          foreach ( $host_array as $host_nodeid) {
-            $host_job_cmd = $job_cmd;
-            $host_node = node_load($host_nodeid);
-            
-            # create temporary file with SSH private key
-            $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
-            $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
-            $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
-            $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
-            unlink($tmpdname);
-            mkdir($tmpdname, 0700);
-            $dirs_to_cleanup[] = $tmpdname;
-            $ssh_key_filename = $tmpdname.'/id_dsa';
-            file_put_contents($ssh_key_filename, $ssh_key_contents);
-            $files_to_cleanup[] = $ssh_key_filename;
-            chmod($ssh_key_filename, 0600);
+    if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
+      $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
+      if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and (($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'jobhost') or ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'job_ssh_host'))) {
 
-            $host_job_cmd = preg_replace('/%'.'ssh_hostname'.'/', $host_node->title, $host_job_cmd);
-            $host_job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $host_job_cmd);
-            $host_job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $host_job_cmd);
-            $host_job_cmd = 'echo; echo HOST: '.$host_node->title.'; '. $host_job_cmd;
-            $host_command_array[] = $host_job_cmd;
-          }
-
-          $job_cmd = join(' ', $host_command_array);
-
-        } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and ($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'sshaccount')) {
+        # jobhost -> ssh key lookup
+        $host_array= $submission->data[$mapping[$fieldname]]['value'];
+        $host_command_array= array();
+        foreach ( $host_array as $host_nodeid) {
+          $host_job_cmd = $job_cmd;
+          $host_node = node_load($host_nodeid);
+          
           # create temporary file with SSH private key
-          $ssh_credentials_node = node_load($argdata);
+          $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
           $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
           $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
           $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
@@ -116,32 +95,57 @@ function job_webform_submission_presave($node, &$submission) {
           mkdir($tmpdname, 0700);
           $dirs_to_cleanup[] = $tmpdname;
           $ssh_key_filename = $tmpdname.'/id_dsa';
-          $files_to_cleanup[] = $ssh_key_filename;
           file_put_contents($ssh_key_filename, $ssh_key_contents);
+          $files_to_cleanup[] = $ssh_key_filename;
           chmod($ssh_key_filename, 0600);
 
-          $job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $job_cmd);
-          $job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $job_cmd);
-
-        } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'textarea') and ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'remote_php_script_file')) { # XXX make this less britle
-          # create temporary file with PHP script
-          $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_phptmp");
-          unlink($tmpdname);
-          mkdir($tmpdname, 0700);
-          $dirs_to_cleanup[] = $tmpdname;
-          $script_filename = $tmpdname.'/drupal_job.php';
-          $script_code = "<?php\n\n".$submission->data[$mapping[$fieldname]]['value'][0];
-          file_put_contents($script_filename, $script_code);
-          $files_to_cleanup[] = $script_filename;
-          chmod($script_filename, 0700);
-
-          $job_cmd = preg_replace('/%'.'script_filename'.'/', $script_filename, $job_cmd);
-        } else {
-
-          $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
+          $host_job_cmd = preg_replace('/%'.'ssh_hostname'.'/', $host_node->title, $host_job_cmd);
+          $host_job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $host_job_cmd);
+          $host_job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $host_job_cmd);
+          $host_job_cmd = 'echo; echo HOST: '.$host_node->title.'; '. $host_job_cmd;
+          $host_command_array[] = $host_job_cmd;
         }
+
+        $job_cmd = join(' ', $host_command_array);
+
+      } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'textarea') and ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'job_webform_script_file')) {
+        # create temporary file with PHP script
+        $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_scriptfiletmp");
+        unlink($tmpdname);
+        mkdir($tmpdname, 0700);
+        $dirs_to_cleanup[] = $tmpdname;
+        $script_filename = $tmpdname.'/drupal_job_scriptfile';
+        $script_code = $submission->data[$mapping[$fieldname]]['value'][0];
+        # $script_code = "<?php\n\n".$script_code;
+        file_put_contents($script_filename, $script_code);
+        $files_to_cleanup[] = $script_filename;
+        chmod($script_filename, 0700);
+
+        $job_cmd = preg_replace('/%'.'webform_script_filename'.'/', $script_filename, $job_cmd);
+      } else {
+
+        $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
       }
+    }
   }
+  # XXX create temporary file with node form scriptfile contents
+  if ((isset($node->field_job_scriptfile['und'])) and (strlen($node->field_job_scriptfile['und'][0]['value'])>0)) {
+    $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_scriptfiletmp");
+    unlink($tmpdname);
+    mkdir($tmpdname, 0700);
+    $dirs_to_cleanup[] = $tmpdname;
+    $script_filename = $tmpdname.'/drupal_job_scriptfile';
+    $script_code = $node->field_job_scriptfile['und'][0]['value'];
+    $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_scriptfiletmp");
+    # $script_code = "<?php\n\n".$script_code;
+    file_put_contents($script_filename, $script_code);
+    $files_to_cleanup[] = $script_filename;
+    chmod($script_filename, 0700);
+
+    $job_cmd = preg_replace('/%'.'script_filename'.'/', $script_filename, $job_cmd);
+  }
+
+  # execute the job now
   if (strcmp($job_type, 'shell')==0) {
     $job_output = shell_exec($job_cmd." 2>&1");
     # XXX check for success/fail here 
@@ -201,10 +205,6 @@ function job_webform_select_options_info() {
     'title' => t('AWS Account'),
     'options callback' => 'list_aws_accounts',
   );
-  $items['sshaccount'] = array(
-    'title' => t('SSH Account'),
-    'options callback' => 'list_ssh_accounts',
-  );
   $items['jobhost'] = array(
     'title' => t('Job Hosts'),
     'options callback' => 'list_job_hosts',
@@ -230,18 +230,6 @@ function list_aws_accounts() {
   $results = db_select('node', 'n')
     ->fields('n', array('nid','title'))
     ->condition('type', array('aws_account'), 'IN')
-    ->execute();
-  foreach ($results as $result) {
-    $accounts[$result->nid] = $result->title;
-  }
-  return $accounts;
-}
-
-function list_ssh_accounts() {
-  $accounts = array();
-  $results = db_select('node', 'n')
-    ->fields('n', array('nid','title'))
-    ->condition('type', array('ssh_credentials'), 'IN')
     ->execute();
   foreach ($results as $result) {
     $accounts[$result->nid] = $result->title;
@@ -300,7 +288,7 @@ function list_aws_volumes($component, $flat, $filter, $arguments) {
       drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
     }
   } else {
-      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+    # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
   }
   return $opts;
 }
