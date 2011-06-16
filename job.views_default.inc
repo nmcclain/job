@@ -29,7 +29,6 @@ function job_views_default_views() {
   );
   $handler->display->display_options['cache']['type'] = 'none';
   $handler->display->display_options['query']['type'] = 'views_query';
-  $handler->display->display_options['query']['options']['query_comment'] = FALSE;
   $handler->display->display_options['exposed_form']['type'] = 'basic';
   $handler->display->display_options['pager']['type'] = 'full';
   $handler->display->display_options['pager']['options']['items_per_page'] = '20';
@@ -64,7 +63,6 @@ function job_views_default_views() {
   $handler->display->display_options['header']['area']['empty'] = FALSE;
   $handler->display->display_options['header']['area']['content'] = '<a href="/node/add/aws-account">Add AWS Credentials</a> | <a href="/node/add/ssh_credentials">Add SSH Credentials</a>';
   $handler->display->display_options['header']['area']['format'] = 'full_html';
-  $handler->display->display_options['header']['area']['tokenize'] = 0;
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title']['id'] = 'title';
   $handler->display->display_options['fields']['title']['table'] = 'node';
@@ -75,12 +73,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['title']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['title']['alter']['external'] = 0;
   $handler->display->display_options['fields']['title']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = 0;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = 0;
   $handler->display->display_options['fields']['title']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['html'] = 0;
   $handler->display->display_options['fields']['title']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['title']['element_default_classes'] = 1;
@@ -96,12 +93,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['type']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['type']['alter']['external'] = 0;
   $handler->display->display_options['fields']['type']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['type']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['type']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['type']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['type']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['type']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['type']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['type']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['type']['alter']['html'] = 0;
   $handler->display->display_options['fields']['type']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['type']['element_default_classes'] = 1;
@@ -176,7 +172,6 @@ function job_views_default_views() {
   );
   $handler->display->display_options['cache']['type'] = 'none';
   $handler->display->display_options['query']['type'] = 'views_query';
-  $handler->display->display_options['query']['options']['query_comment'] = FALSE;
   $handler->display->display_options['exposed_form']['type'] = 'basic';
   $handler->display->display_options['pager']['type'] = 'full';
   $handler->display->display_options['pager']['options']['items_per_page'] = '12';
@@ -191,8 +186,6 @@ function job_views_default_views() {
   $handler->display->display_options['header']['area']['label'] = 'Add host link';
   $handler->display->display_options['header']['area']['empty'] = FALSE;
   $handler->display->display_options['header']['area']['content'] = '<a href="/node/add/job-host">Add Host</a>';
-  $handler->display->display_options['header']['area']['format'] = 'filtered_html';
-  $handler->display->display_options['header']['area']['tokenize'] = 0;
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title']['id'] = 'title';
   $handler->display->display_options['fields']['title']['table'] = 'node';
@@ -201,10 +194,10 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['title']['alter']['alter_text'] = 0;
   $handler->display->display_options['fields']['title']['alter']['make_link'] = 0;
   $handler->display->display_options['fields']['title']['alter']['absolute'] = 0;
+  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = 0;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = 0;
   $handler->display->display_options['fields']['title']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['html'] = 0;
   $handler->display->display_options['fields']['title']['hide_empty'] = 0;
   $handler->display->display_options['fields']['title']['empty_zero'] = 0;
@@ -273,7 +266,6 @@ function job_views_default_views() {
   );
   $handler->display->display_options['cache']['type'] = 'none';
   $handler->display->display_options['query']['type'] = 'views_query';
-  $handler->display->display_options['query']['options']['query_comment'] = FALSE;
   $handler->display->display_options['exposed_form']['type'] = 'basic';
   $handler->display->display_options['pager']['type'] = 'full';
   $handler->display->display_options['pager']['options']['items_per_page'] = '12';
@@ -343,12 +335,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['sid']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['sid']['alter']['external'] = 0;
   $handler->display->display_options['fields']['sid']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['sid']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['sid']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['sid']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['sid']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['sid']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['sid']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['sid']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['sid']['alter']['html'] = 0;
   $handler->display->display_options['fields']['sid']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['sid']['element_default_classes'] = 1;
@@ -366,12 +357,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['title']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['title']['alter']['external'] = 0;
   $handler->display->display_options['fields']['title']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['title']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['html'] = 0;
   $handler->display->display_options['fields']['title']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['title']['element_default_classes'] = 1;
@@ -389,12 +379,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['name']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['name']['alter']['external'] = 0;
   $handler->display->display_options['fields']['name']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['name']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['name']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['name']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['name']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['name']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['name']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['name']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['name']['alter']['html'] = 0;
   $handler->display->display_options['fields']['name']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['name']['element_default_classes'] = 1;
@@ -411,12 +400,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['submitted']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['external'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['submitted']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['submitted']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['submitted']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['submitted']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['submitted']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['html'] = 0;
   $handler->display->display_options['fields']['submitted']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['submitted']['element_default_classes'] = 1;
@@ -453,7 +441,6 @@ function job_views_default_views() {
   $handler->display->display_options['use_ajax'] = TRUE;
   $handler->display->display_options['defaults']['use_more'] = FALSE;
   $handler->display->display_options['use_more'] = TRUE;
-  $handler->display->display_options['use_more_text'] = 'more results';
   $handler->display->display_options['defaults']['pager'] = FALSE;
   $handler->display->display_options['pager']['type'] = 'some';
   $handler->display->display_options['pager']['options']['items_per_page'] = '5';
@@ -468,12 +455,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['submitted']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['external'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['submitted']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['submitted']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['submitted']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['submitted']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['submitted']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['submitted']['alter']['html'] = 0;
   $handler->display->display_options['fields']['submitted']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['submitted']['element_default_classes'] = 1;
@@ -492,12 +478,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['title']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['title']['alter']['external'] = 0;
   $handler->display->display_options['fields']['title']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['title']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['html'] = 0;
   $handler->display->display_options['fields']['title']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['title']['element_default_classes'] = 1;
@@ -553,7 +538,6 @@ function job_views_default_views() {
   );
   $handler->display->display_options['cache']['type'] = 'none';
   $handler->display->display_options['query']['type'] = 'views_query';
-  $handler->display->display_options['query']['options']['query_comment'] = FALSE;
   $handler->display->display_options['exposed_form']['type'] = 'basic';
   $handler->display->display_options['pager']['type'] = 'full';
   $handler->display->display_options['pager']['options']['items_per_page'] = '30';
@@ -596,19 +580,18 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['title']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['title']['alter']['external'] = 0;
   $handler->display->display_options['fields']['title']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = 0;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = 0;
   $handler->display->display_options['fields']['title']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['html'] = 0;
   $handler->display->display_options['fields']['title']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['title']['element_default_classes'] = 1;
   $handler->display->display_options['fields']['title']['hide_empty'] = 0;
   $handler->display->display_options['fields']['title']['empty_zero'] = 0;
   $handler->display->display_options['fields']['title']['link_to_node'] = 1;
-  /* Field: Content: All taxonomy terms */
+  /* Field: Broken/missing handler */
   $handler->display->display_options['fields']['term_node_tid']['id'] = 'term_node_tid';
   $handler->display->display_options['fields']['term_node_tid']['table'] = 'node';
   $handler->display->display_options['fields']['term_node_tid']['field'] = 'term_node_tid';
@@ -618,23 +601,16 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['term_node_tid']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['alter']['external'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['term_node_tid']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['term_node_tid']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['term_node_tid']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['term_node_tid']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['term_node_tid']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['alter']['html'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['term_node_tid']['element_default_classes'] = 1;
   $handler->display->display_options['fields']['term_node_tid']['hide_empty'] = 0;
   $handler->display->display_options['fields']['term_node_tid']['empty_zero'] = 0;
-  $handler->display->display_options['fields']['term_node_tid']['link_to_taxonomy'] = 1;
-  $handler->display->display_options['fields']['term_node_tid']['limit'] = 0;
-  $handler->display->display_options['fields']['term_node_tid']['vocabularies'] = array(
-    'job_tags' => 0,
-    'tags' => 0,
-  );
   /* Field: Content: Webform submission count */
   $handler->display->display_options['fields']['webform_submission_count_node']['id'] = 'webform_submission_count_node';
   $handler->display->display_options['fields']['webform_submission_count_node']['table'] = 'node';
@@ -645,12 +621,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['external'] = 0;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['webform_submission_count_node']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['webform_submission_count_node']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['word_boundary'] = 1;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['ellipsis'] = 1;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['webform_submission_count_node']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['webform_submission_count_node']['alter']['html'] = 0;
   $handler->display->display_options['fields']['webform_submission_count_node']['element_label_colon'] = 1;
   $handler->display->display_options['fields']['webform_submission_count_node']['element_default_classes'] = 1;
@@ -701,12 +676,11 @@ function job_views_default_views() {
   $handler->display->display_options['fields']['title']['alter']['absolute'] = 0;
   $handler->display->display_options['fields']['title']['alter']['external'] = 0;
   $handler->display->display_options['fields']['title']['alter']['replace_spaces'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim_whitespace'] = 0;
+  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['nl2br'] = 0;
   $handler->display->display_options['fields']['title']['alter']['word_boundary'] = 0;
   $handler->display->display_options['fields']['title']['alter']['ellipsis'] = 0;
   $handler->display->display_options['fields']['title']['alter']['strip_tags'] = 0;
-  $handler->display->display_options['fields']['title']['alter']['trim'] = 0;
   $handler->display->display_options['fields']['title']['alter']['html'] = 0;
   $handler->display->display_options['fields']['title']['element_label_colon'] = FALSE;
   $handler->display->display_options['fields']['title']['element_default_classes'] = 1;
