@@ -1,0 +1,110 @@
+<?php
+
+function job_jobs_create_snapshot($aws_nodeid, $volume_id, $description = "") {
+  $node = node_load($aws_nodeid);
+  if (!$node) {
+    $job_status=0;
+    $job_output='XXX Snapshot failed - couldnt find AWS credentials node';
+    return $job_output;
+  }
+
+  $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+  $response = $ec2->create_snapshot($volume_id, $description);
+  dd($response->body->status);
+
+  $job_status=1;
+  if ($job_status) {
+    $job_output='XXX Successful snapshot';
+  } else {
+    $job_output='XXX Snapshot failed';
+  }
+  return $job_output;
+}
+
+function job_jobs_create_volume_from_most_recent_volume_snapshot($aws_nodeid, $volume_id, $description = "") {
+  $job_output='';
+  $node = node_load($aws_nodeid);
+  if (!$node) {
+    $job_status=0;
+    $job_output='XXX Snapshot failed - couldnt find AWS credentials node';
+    return $job_output;
+  }
+  $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+
+  # lookup current volume avail zone 
+  $response = $ec2->describe_volumes(array('VolumeId' => $volume_id));
+  if (!isset($response->body->volumeSet->item)) {
+    die ('XXX couldnt find volume '. $volume_id);
+  }
+  $availability_zone = (string)$response->body->volumeSet->item->availabilityZone;
+
+  # find snapshots of current volume
+  $volume_snapshots = array();
+  #$response = $ec2->describe_snapshots(array('Filter'=>array('volume-id' => $volume_id))); # XXX filter query not working
+  $response = $ec2->describe_snapshots();
+  foreach ( $response->body->snapshotSet->item as $snapshot) {
+    if ((string)$snapshot->volumeId == $volume_id) {
+      $volume_snapshots[ strtotime((string)$snapshot->startTime) ] = (string)$snapshot->snapshotId;
+    }
+  }
+
+  # most recent snapshot of current volume
+  krsort($volume_snapshots);
+  $snapshot_ts = array_shift(array_keys($volume_snapshots));
+  $snapshot_id = array_shift($volume_snapshots);
+  $job_output.='Found most recent snapshot of '.$volume_id.': '.$snapshot_id.' ('.date('YMd His', $snapshot_ts).")\n";
+
+  # make new volume from most recent snapshot
+  $response = $ec2->create_volume($availability_zone, array('SnapshotId' => $snapshot_id));
+
+  if ((string)$response->body->status == 'creating') {
+    $job_status=1;
+    $job_output.="\tNew volume ID: ".(string)$response->body->volumeId."\n";
+    $job_output="Successfully created volume from most recent snapshot of volume $volume_id:\n". $job_output;
+  } else {
+    $job_status=0;
+    $job_output="Failed to create volume from most recent snapshot of volume:\n". $job_output;
+  }
+  return $job_output;
+}
+
+function job_jobs_create_instance_snapshots($aws_nodeid, $ec2_instance, $description = "") {
+  $job_status=1;
+  $node = node_load($aws_nodeid);
+  if (!$node) {
+    $job_status=0;
+    $job_output='XXX Snapshot failed - couldnt find AWS credentials node';
+    return $job_output;
+  }
+
+  $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
+  $response = $ec2->describe_instances(array('InstanceId'=>$ec2_instance));
+  $instance = $response->body->reservationSet->item->instancesSet->item[0];
+  dd((string)$instance->instanceId);
+  $vols = array();
+  foreach ( $instance->blockDeviceMapping->item as $device ) {
+    if (isset($device->ebs)) {
+      $vol_id = (string)$device->ebs->volumeId;
+      $vols[$vol_id] = $vol_id.': '.(string)$device->deviceName;
+    }
+  }
+
+  $job_output='';
+  foreach ($vols as $volume_id => $vol_description) {
+    $response = $ec2->create_snapshot($volume_id, $description);
+    if ((string)$response->body->status == 'pending') {
+      $job_output.="\n\t+ ".$vol_description;
+    } else {
+      $job_output.="\n\tE ".$vol_description." (error with this snapshot!)";
+      $job_status=0;
+    }
+  }
+
+  if ($job_status==1) {
+    $job_output="Successfully took snapshots of all volumes mounted on $ec2_instance:". $job_output;
+  } else {
+    $job_output="Instance snapshots failed for $ec2_instance:". $job_output;
+  }
+  return $job_output;
+}
+
