@@ -7,8 +7,8 @@
  */
 
 include_once('job.features.inc');
-require_once('aws-php-sdk-1.3.3/sdk.class.php');
-require_once('jobs/jobs.aws');
+require_once('sdkforphp/sdk.class.php');  # XXX fix this to look in sites/all/libraries too
+require_once('jobs/jobs.aws');            # XXX this should include appropriately-named files from the jobs directory, no be hardcoded
 
 /**
  * Implementation of hook_perm()
@@ -17,12 +17,17 @@ function job_perm() {
   return array('administer jobs');
 }
 
+/**
+ * Implementation of hook_form_alter()
+ */
 function job_form_alter(&$form, $form_state, $form_id) {
   if (isset($form['#node']->type) and ($form['#node']->type == 'job')) {
+
     # custom submit handler so our custom options lists can access data from webform components on previous form pages.
+    # currenlty, multistep forms are used so you can pick an AWS account on one step, and the related AWS instance or volume on the next
     $form['#submit'][] = 'job_webform_multistep_submit';
 
-    # cleanup SESSION variables used for passing state to option lists
+    # cleanup SESSION variables used for passing state to option lists on multistep forms
     unset($_SESSION['job_aws_account']);
 
     if ($form_id == 'job_node_form') {
@@ -33,19 +38,23 @@ function job_form_alter(&$form, $form_state, $form_id) {
         foreach ($form['webform']['#value']['components'] as $component) {
           if ($component['form_key']=='results') { continue; }
           if ($component['type']=='pagebreak') { continue; }
-          # Add custom token-like strings for command substitution
+          # Add custom token-like strings for command substitution - XXX this probably should use token module!
           if (($component['type']=='select') and (($component['extra']['options_source'] == 'jobhost') or ($component['form_key'] == 'job_ssh_host'))) {
+            # provide SSH key/user/host substitution if the appropriate Webform field exists
             $available_webform_fields[] = '%'.'ssh_privatekey_path';
             $available_webform_fields[] = '%'.'ssh_username';
             $available_webform_fields[] = '%'.'ssh_hostname';
 
           } else if (($component['type']=='textarea') and ($component['form_key'] == 'job_webform_script_file')) {
+            # provide substitution for saving a field to a temp file if the appropriate Webform field exists
             $available_webform_fields[] = '%'.'webform_script_filename';
+
           } else { 
+            # provide plain vanilla substitution for all other Webform fields
             $available_webform_fields[] = '%'.$component['form_key'];
           }
         }
-        if (isset($form['field_job_scriptfile'])) {
+        if (isset($form['field_job_scriptfile'])) { # provide substitution for saving a field to a temp file if the appropriate node field exists (this is useful when you don't want the end user to be able to edit the script)
           $available_webform_fields[] = '%'.'script_filename';
         }
         $form['field_job_command']['und'][0]['value']['#description'] = t('The following Job fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
@@ -64,24 +73,24 @@ function job_webform_multistep_submit($form, &$form_state) {
 }
 
 function job_webform_submission_presave($node, &$submission) {
-  if (0) {  # XXX validate job here!
+  if (0) {  # XXX huge todo - validate job here!
     $job_results = 'Error validating job';
   }
 
   $mapping = _job_webform_component_mapping($node);
   # schedule job here!
-  $job_results = 'Scheduled for execution';
+  $job_results = t('Scheduled for execution');
   $job_type = $node->field_job_type['und'][0]['value'];
   $job_cmd = trim($node->field_job_command['und'][0]['value']);
 
-  $files_to_cleanup = array();
+  $files_to_cleanup = array(); # keep track of temp files and dirs so we can delete them when the job is done
   $dirs_to_cleanup = array();
   foreach (array_keys($mapping) as $fieldname) {
     if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
       $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
       if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and (($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'jobhost') or ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'job_ssh_host'))) {
 
-        # jobhost -> ssh key lookup
+        # this section provides hostname and ssh key substitution via the nodereference field
         $host_array= $submission->data[$mapping[$fieldname]]['value'];
         $host_command_array= array();
         foreach ( $host_array as $host_nodeid) {
@@ -92,7 +101,7 @@ function job_webform_submission_presave($node, &$submission) {
           $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
           $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
           $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
-          $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_sshtmp");
+          $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_sshtmp');
           unlink($tmpdname);
           mkdir($tmpdname, 0700);
           $dirs_to_cleanup[] = $tmpdname;
@@ -111,14 +120,14 @@ function job_webform_submission_presave($node, &$submission) {
         $job_cmd = join(' ', $host_command_array);
 
       } else if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'textarea') and ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'job_webform_script_file')) {
-        # create temporary file with PHP script
-        $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_scriptfiletmp");
+
+        # create temporary file with script contained in Webform field
+        $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
         unlink($tmpdname);
         mkdir($tmpdname, 0700);
         $dirs_to_cleanup[] = $tmpdname;
         $script_filename = $tmpdname.'/drupal_job_scriptfile';
         $script_code = $submission->data[$mapping[$fieldname]]['value'][0];
-        # $script_code = "<?php\n\n".$script_code;
         file_put_contents($script_filename, $script_code);
         $files_to_cleanup[] = $script_filename;
         chmod($script_filename, 0700);
@@ -126,19 +135,20 @@ function job_webform_submission_presave($node, &$submission) {
         $job_cmd = preg_replace('/%'.'webform_script_filename'.'/', $script_filename, $job_cmd);
       } else {
 
+      # this is where we do "token" substitution for Webform fields (except it's not Token)
         $job_cmd = preg_replace('/%'.$fieldname.'/', $argdata, $job_cmd);
       }
     }
   }
-  # XXX create temporary file with node form scriptfile contents
+  # create temporary file with script contained in node field
   if ((isset($node->field_job_scriptfile['und'])) and (strlen($node->field_job_scriptfile['und'][0]['value'])>0)) {
-    $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_scriptfiletmp");
+    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
     unlink($tmpdname);
     mkdir($tmpdname, 0700);
     $dirs_to_cleanup[] = $tmpdname;
     $script_filename = $tmpdname.'/drupal_job_scriptfile';
     $script_code = $node->field_job_scriptfile['und'][0]['value'];
-    $tmpdname = tempnam(sys_get_temp_dir(), "drupal_job_scriptfiletmp");
+    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
     # $script_code = "<?php\n\n".$script_code;
     file_put_contents($script_filename, $script_code);
     $files_to_cleanup[] = $script_filename;
@@ -149,20 +159,21 @@ function job_webform_submission_presave($node, &$submission) {
 
   # execute the job now
   if (strcmp($job_type, 'shell')==0) {
-    $job_output = shell_exec($job_cmd." 2>&1");
-    # XXX check for success/fail here 
-    $job_results = 'Successful shell job: '.$job_output;
+    $job_output = shell_exec($job_cmd.' 2>&1');
+    # XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
+    $job_results = t('Successful shell job: %job_output', array('%job_output' => $job_output));
+
   } else if (strcmp($job_type, 'php')==0) {
     unset($job_output);
     eval($job_cmd);
     if (isset($job_output)) { 
-      $job_results = 'Successful PHP job: '.$job_output;
+      $job_results = t('Successful PHP job: %job_output', array('%job_output' => $job_output));
     } else {
       $job_output = false;
-      $job_results = 'Error executing php job: $job_output not set';
+      $job_results = t('Error executing PHP job: $job_output not set');
     }
   } else {
-    $job_results = 'Error scheduling job: unknown job type';
+    $job_results = t('Error scheduling job: unknown job type');
   }
 
   # cleanup
@@ -174,16 +185,13 @@ function job_webform_submission_presave($node, &$submission) {
   }
 
   # results
-  $job_results .= "\n\nCommand: ".$job_cmd;
+  $job_results .= "\n\n".t('Job Command: %job_cmd', array('%job_cmd' => $job_cmd));
   watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
 }
 
-
-
-
 /* 
-Doing this with "form settings" rather than hooks:
+Duh, this is built-in to Webform, so I guess I don't need it: 
 
 function job_webform_submission_insert($node, $submission) {
   drupal_set_message(t('Job complete!'), 'notice');
@@ -214,7 +222,6 @@ function job_webform_select_options_info() {
   $items['awssnapshots'] = array(
     'title' => t('AWS EBS Snapshots'),
     'options callback' => 'list_aws_snapshots',
-    # 'options arguments' => array('testarg', 'foo'),
   );
   $items['awsvolumes'] = array(
     'title' => t('AWS EBS Volumes'),
@@ -318,7 +325,7 @@ function list_aws_instances($component, $flat, $filter, $arguments) {
   return $opts;
 }
 
-/* unused/testing 
+/* XXX unused/parking lot:
 
 function job_menu() {
   $items = array();

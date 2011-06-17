@@ -1,4 +1,58 @@
-This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms.  A weak attempt to reimplement Jenkins in Drupal.
+// $Id$
+
+WARNING: This module is under development and not intended for production use.  In particular, this module provides "command-line" and unlimited PHP access to users, so it should be tested with great caution.  I hope to get to a publicly-usable development version by Fall 2011.
 
 
-AWS stuff depends on SDK from:  http://aws.amazon.com/sdkforphp/
+CONTENTS OF THIS FILE
+---------------------
+
+ * Introduction
+ * Installation
+ * Todo list
+
+
+INTRODUCTION
+------------
+
+Current Maintainer: Ned <http://drupal.org/user/798324>
+
+WARNING: This module is under development and not intended for production use.  In particular, this module provides "command-line" and unlimited PHP access to users, so it should be tested with great caution.  I hope to get to a publicly-usable development version by Fall 2011.
+
+This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms.  It is the very beginnings of a CI (Continuous Integration) platform - an attempt to reimplement some of what Jenkins does in Drupal.
+
+
+
+INSTALLATION
+------------
+
+This should outline a step-by-step explanation of how to install the
+module.
+
+0. This is all experimental -- please provide feedback so I can fix bugs!
+1. Requires all these modules: features link list node_reference taxonomy views webform
+2. Install and enable as usual, see http://drupal.org/node/70151 for further information.
+
+Optional:
+- If you want to try the AWS integration, you need to download the AWS SDK from:  http://aws.amazon.com/sdkforphp/
+  Put the sdkforphp directory at sites/all/modules/job/sdkforphp
+
+TODO LIST
+------------
+
+I am marking known todos in the code with "XXX" so it is easy to grep for them.  
+
+job.features.inc:      'description' => t('Manage execution of external jobs, such as XXX and XXX.'),
+job.module:require_once('sdkforphp/sdk.class.php');  # XXX fix this to look in sites/all/libraries too
+job.module:require_once('jobs/jobs.aws');            # XXX this should include appropriately-named files from the jobs directory, no be hardcoded
+job.module:          # Add custom token-like strings for command substitution - XXX this probably should use token module!
+job.module:    # put the aws account info somewhere it is accessible to webform_select_options_info() - XXX is there a better way to do this?
+job.module:  if (0) {  # XXX huge todo - validate job here!
+job.module:    # XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
+job.module:      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+job.module:      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+job.module:      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+job.module:    # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+job.module:      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
+job.module:      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
+
+
