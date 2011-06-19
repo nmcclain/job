@@ -34,7 +34,7 @@ module.
 
 Optional:
 - If you want to try the AWS integration, you need to download the AWS SDK from:  http://aws.amazon.com/sdkforphp/
-  Put the sdkforphp directory at sites/all/modules/job/sdkforphp
+  Put the sdkforphp directory at sites/all/modules/job/sdkforphp - XXX better directions for this
 
 TODO LIST
 ------------
