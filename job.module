@@ -143,7 +143,7 @@ function job_webform_submission_presave($node, &$submission) {
   if (strcmp($job_type, 'shell')==0) {
     $job_output = shell_exec($job_cmd . ' 2>&1');
     // XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
-    $job_results = t('Successful Shell Job: ').check_plain( $job_output);
+    $job_results = t('Successful Shell Job') . ': ' . check_plain( $job_output);
 
   }
 /* This code will allow for PHP-based execution, but not for now XXX
@@ -158,7 +158,7 @@ function job_webform_submission_presave($node, &$submission) {
       $job_results = t('Error executing PHP job: $job_output not set');
     }
   }
- */ 
+ */
 
   else {
     $job_results = t('Error scheduling job: unknown job type');
@@ -173,7 +173,7 @@ function job_webform_submission_presave($node, &$submission) {
   }
 
   // results
-  $job_results .= "\n\n" . t('Job Command: ').check_plain($job_cmd);
+  $job_results .= "\n\n" . t('Job Command') . ': ' . check_plain($job_cmd);
   watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
 }
