@@ -16,60 +16,42 @@ function job_permission() {
   return array('administer jobs');
 }
 
+function job_node_presave($node) {
+  if ($node->type == 'job') {
+    // Customize the Webform to work better for Jobs
+    $node->webform['confirmation'] = 'Job complete!';
+    $node->webform['redirect_url'] = 'node/%nid/submission/%sid';
 
-
-function job_node_insert($node) {
-  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    dd('New node added - where is the webform field?');
-    dsm($node); return;
-
-    $node['webform'] = array(
-      'confirmation' => 'Job complete!',
-      'redirect_url' => 'node/%nid/submission/%sid',
-      'status' => '1',
-      'block' => '0',
-      'teaser' => '0',
-      'allow_draft' => '0',
-      'auto_save' => '0',
-      'submit_notice' => '0',
-      'submit_text' => '',
-      'submit_limit' => '-1',
-      'submit_interval' => '-1',
-        
-      'components' => array(
-        '1' => array(
-          'form_key' => 'results',
-          'name' => 'Results',
-          'type' => 'textarea',
-          'value' => 'Ignore this field for now - Job results will be placed here.',
-          'page_num' => 1,
-          'mandatory' => '0',
-          'weight' => '1000',
-          'extra' => array(
-            'title_display' => 0,
-            'rows' => '1',
-            'resizable' => 0,
-            'disabled' => 1,
-            'conditional_operator' => '=',
-            'cols' => '',
-            'description' => '',
-            'attributes' => array(),
-            'conditional_component' => '',
-            'conditional_values' => '',
-          ),
-        ),
+    // Add the Results Webform field automatically to hold Job results
+    $node->webform['components'] = array();
+    $node->webform['components'][1] = array(
+      'form_key' => 'results',
+      'name' => 'Results',
+      'pid' => 0,
+      'type' => 'textarea',
+      'value' => 'Ignore this field for now - Job results will be placed here.',
+      'page_num' => 1,
+      'mandatory' => '0',
+      'weight' => '1000',
+      'extra' => array(
+        'title_display' => 0,
+        'rows' => '1',
+        'resizable' => 0,
+        'disabled' => 1,
+        'conditional_operator' => '=',
+        'cols' => '',
+        'description' => '',
+        'attributes' => array(),
+        'conditional_component' => '',
+        'conditional_values' => '',
       ),
     );
-
+  }
 }
 
 
-function job_webform_component_insert($component) {
-    dd('New component');
-    dd( $component) ;
-
-}
-
+// function job_webform_component_insert($component) {
+// }
 
 
 /**
@@ -78,15 +60,17 @@ function job_webform_component_insert($component) {
 function job_form_alter(&$form, $form_state, $form_id) {
   if (isset($form['#node']->type) and ($form['#node']->type == 'job')) {
 
-    # custom submit handler so our custom options lists can access data from webform components on previous form pages
-    # currenlty, multistep forms are used so you can pick an AWS account on one step, and the related AWS instance or volume on the next
+    // custom submit handler so our custom options lists can access data from webform components on previous form pages
+    // currenlty, multistep forms are used so you can pick an AWS account on one step, and the related AWS instance or volume on the next
     $form['#submit'][] = 'job_webform_multistep_submit';
 
-    # cleanup SESSION variables used for passing state to option lists on multistep forms
-    unset($_SESSION['job_aws_account']);
+    // not used: cleanup SESSION variables used for passing state to option lists on multistep forms
+    // not used: unset($_SESSION['job_aws_account']);
 
     if ($form_id == 'job_node_form') {
-      # available weform fields
+      // XXX do we want to hide the webform results textfield component when displaying the node?
+
+      // available weform fields
       $available_webform_fields = array();
       $found_results_field=0;
       if (isset($form['webform'])) {
@@ -97,15 +81,15 @@ function job_form_alter(&$form, $form_state, $form_id) {
           if ($component['type']=='pagebreak') {
             continue;
           }
-          # Add custom token-like strings for command substitution - XXX this probably should use token module!
-          # provide plain vanilla substitution for all other Webform fields
+          // Add custom token-like strings for command substitution - XXX this probably should use token module!
+          // provide plain vanilla substitution for all other Webform fields
           $available_webform_fields[] = '%' . $component['form_key'];
         }
-        # provide substitution for saving a field to a temp file if the appropriate node field exists
-        if (isset($form['field_job_scriptfile'])) {
+        // provide substitution for saving a field to a temp file if the appropriate node field exists
+        if (isset($form['job_scriptfile'])) {
           $available_webform_fields[] = '%' . 'script_filename';
         }
-        $form['field_job_command']['und'][0]['value']['#description'] = t('The following Job fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
+        $form['job_command']['und'][0]['value']['#description'] = t('The following Job fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
       }
       else {
         drupal_set_message(t('Webform must be enabled for the Job module to work properly'), 'error');
@@ -115,38 +99,38 @@ function job_form_alter(&$form, $form_state, $form_id) {
 }
 
 function job_webform_multistep_submit($form, &$form_state) {
-  # this is where we would hand data between multistep forms
+  // this is where we would hand data between multistep forms
 }
 
 function job_webform_submission_presave($node, &$submission) {
-  if (0) {  # XXX huge todo - validate job here!
+  if (0) {  // XXX huge todo - validate job here!
     $job_results = 'Error validating job';
   }
 
   $mapping = _job_webform_component_mapping($node);
-  # schedule job here!
+  // schedule job here!
   $job_results = t('Scheduled for execution');
-  $job_type = $node->field_job_type['und'][0]['value'];
-  $job_cmd = trim($node->field_job_command['und'][0]['value']);
+  $job_type = $node->job_type['und'][0]['value'];
+  $job_cmd = trim($node->job_command['und'][0]['value']);
 
-  $files_to_cleanup = array(); # keep track of temp files and dirs so we can delete them when the job is done
+  $files_to_cleanup = array(); // keep track of temp files and dirs so we can delete them when the job is done
   $dirs_to_cleanup = array();
   foreach (array_keys($mapping) as $fieldname) {
     if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
       $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
 
-      # this is where we do "token" substitution for Webform fields (except it's not Token)
+      // this is where we do "token" substitution for Webform fields (except it's not Token)
       $job_cmd = preg_replace('/%' . $fieldname . '/', $argdata, $job_cmd);
     }
   }
-  # create temporary file with script contained in node field
-  if ((isset($node->field_job_scriptfile['und'])) and (drupal_strlen($node->field_job_scriptfile['und'][0]['value'])>0)) {
+  // create temporary file with script contained in node field
+  if ((isset($node->job_scriptfile['und'])) and (drupal_strlen($node->job_scriptfile['und'][0]['value'])>0)) {
     $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
     unlink($tmpdname);
     mkdir($tmpdname, 0700);
     $dirs_to_cleanup[] = $tmpdname;
     $script_filename = $tmpdname . '/drupal_job_scriptfile';
-    $script_code = $node->field_job_scriptfile['und'][0]['value'];
+    $script_code = $node->job_scriptfile['und'][0]['value'];
     $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
     file_put_contents($script_filename, $script_code);
     $files_to_cleanup[] = $script_filename;
@@ -155,11 +139,11 @@ function job_webform_submission_presave($node, &$submission) {
     $job_cmd = preg_replace('/%script_filename/', $script_filename, $job_cmd);
   }
 
-  # execute the job now
+  // execute the job now
   if (strcmp($job_type, 'shell')==0) {
     $job_output = shell_exec($job_cmd . ' 2>&1');
-    # XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
-    $job_results = t('Successful shell job: %job_output', array('%job_output' => $job_output));
+    // XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
+    $job_results = t('Successful Shell Job: ').check_plain( $job_output);
 
   }
 /* This code will allow for PHP-based execution, but not for now XXX
@@ -180,7 +164,7 @@ function job_webform_submission_presave($node, &$submission) {
     $job_results = t('Error scheduling job: unknown job type');
   }
 
-  # cleanup
+  // cleanup
   foreach ($files_to_cleanup as $clean_me_up) {
     unlink($clean_me_up);
   }
@@ -188,8 +172,8 @@ function job_webform_submission_presave($node, &$submission) {
     rmdir($clean_me_up);
   }
 
-  # results
-  $job_results .= "\n\n" . t('Job Command: %job_cmd', array('%job_cmd' => $job_cmd));
+  // results
+  $job_results .= "\n\n" . t('Job Command: ').check_plain($job_cmd);
   watchdog('job', $job_results);
   $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
 }
