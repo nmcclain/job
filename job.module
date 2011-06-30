@@ -9,16 +9,68 @@
  * by leveraging the power of the webform module.
  */
 
-include_once('job.features.inc');
-require_once('sdkforphp/sdk.class.php');  # XXX fix this to look in sites/all/libraries too
-require_once('jobs/jobs.aws');            # XXX this should include appropriately-named files from the jobs directory, no be hardcoded
-
 /**
  * Implements hook_permission().
  */
 function job_permission() {
   return array('administer jobs');
 }
+
+
+
+function job_node_insert($node) {
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    dd('New node added - where is the webform field?');
+    dsm($node); return;
+
+    $node['webform'] = array(
+      'confirmation' => 'Job complete!',
+      'redirect_url' => 'node/%nid/submission/%sid',
+      'status' => '1',
+      'block' => '0',
+      'teaser' => '0',
+      'allow_draft' => '0',
+      'auto_save' => '0',
+      'submit_notice' => '0',
+      'submit_text' => '',
+      'submit_limit' => '-1',
+      'submit_interval' => '-1',
+        
+      'components' => array(
+        '1' => array(
+          'form_key' => 'results',
+          'name' => 'Results',
+          'type' => 'textarea',
+          'value' => 'Ignore this field for now - Job results will be placed here.',
+          'page_num' => 1,
+          'mandatory' => '0',
+          'weight' => '1000',
+          'extra' => array(
+            'title_display' => 0,
+            'rows' => '1',
+            'resizable' => 0,
+            'disabled' => 1,
+            'conditional_operator' => '=',
+            'cols' => '',
+            'description' => '',
+            'attributes' => array(),
+            'conditional_component' => '',
+            'conditional_values' => '',
+          ),
+        ),
+      ),
+    );
+
+}
+
+
+function job_webform_component_insert($component) {
+    dd('New component');
+    dd( $component) ;
+
+}
+
+
 
 /**
  * Implements hook_form_alter().
@@ -46,25 +98,10 @@ function job_form_alter(&$form, $form_state, $form_id) {
             continue;
           }
           # Add custom token-like strings for command substitution - XXX this probably should use token module!
-          if (($component['type']=='select') and (($component['extra']['options_source'] == 'jobhost') or ($component['form_key'] == 'job_ssh_host'))) {
-            # provide SSH key/user/host substitution if the appropriate Webform field exists
-            $available_webform_fields[] = '%ssh_privatekey_path';
-            $available_webform_fields[] = '%ssh_username';
-            $available_webform_fields[] = '%ssh_hostname';
-
-          }
-          elseif (($component['type']=='textarea') and ($component['form_key'] == 'job_webform_script_file')) {
-            # provide substitution for saving a field to a temp file if the appropriate Webform field exists
-            $available_webform_fields[] = '%webform_script_filename';
-
-          }
-          else {
-            # provide plain vanilla substitution for all other Webform fields
-            $available_webform_fields[] = '%' . $component['form_key'];
-          }
+          # provide plain vanilla substitution for all other Webform fields
+          $available_webform_fields[] = '%' . $component['form_key'];
         }
         # provide substitution for saving a field to a temp file if the appropriate node field exists
-        # this is useful when you don't want the end user to be able to edit the script
         if (isset($form['field_job_scriptfile'])) {
           $available_webform_fields[] = '%' . 'script_filename';
         }
@@ -78,10 +115,7 @@ function job_form_alter(&$form, $form_state, $form_id) {
 }
 
 function job_webform_multistep_submit($form, &$form_state) {
-  if (isset($form['submitted']['aws_account'])) {
-    # put the aws account info somewhere it is accessible to webform_select_options_info() - XXX is there a better way to do this?
-    $_SESSION['job_aws_account'] = $form['submitted']['aws_account']['#value'];
-  }
+  # this is where we would hand data between multistep forms
 }
 
 function job_webform_submission_presave($node, &$submission) {
@@ -100,58 +134,9 @@ function job_webform_submission_presave($node, &$submission) {
   foreach (array_keys($mapping) as $fieldname) {
     if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
       $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
-      if (($node->webform['components'][$mapping[$fieldname]]['type'] == 'select') and (($node->webform['components'][$mapping[$fieldname]]['extra']['options_source'] == 'jobhost') or ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'job_ssh_host'))) {
-
-        # this section provides hostname and ssh key substitution via the nodereference field
-        $host_array= $submission->data[$mapping[$fieldname]]['value'];
-        $host_command_array= array();
-        foreach ( $host_array as $host_nodeid) {
-          $host_job_cmd = $job_cmd;
-          $host_node = node_load($host_nodeid);
-
-          # create temporary file with SSH private key
-          $ssh_credentials_node = node_load($host_node->field_ssh_credentials['und'][0]['nid']);
-          $ssh_key_contents = $ssh_credentials_node ->field_ssh_privatekey['und'][0]['value'];
-          $ssh_user = $ssh_credentials_node ->field_ssh_username['und'][0]['value'];
-          $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_sshtmp');
-          unlink($tmpdname);
-          mkdir($tmpdname, 0700);
-          $dirs_to_cleanup[] = $tmpdname;
-          $ssh_key_filename = $tmpdname.'/id_dsa';
-          file_put_contents($ssh_key_filename, $ssh_key_contents);
-          $files_to_cleanup[] = $ssh_key_filename;
-          chmod($ssh_key_filename, 0600);
-
-          $host_job_cmd = preg_replace('/%'.'ssh_hostname'.'/', $host_node->title, $host_job_cmd);
-          $host_job_cmd = preg_replace('/%'.'ssh_privatekey_path'.'/', $ssh_key_filename, $host_job_cmd);
-          $host_job_cmd = preg_replace('/%'.'ssh_username'.'/', $ssh_user, $host_job_cmd);
-          $host_job_cmd = 'echo; echo HOST: '.$host_node->title.'; '. $host_job_cmd;
-          $host_command_array[] = $host_job_cmd;
-        }
-
-        $job_cmd = join(' ', $host_command_array);
-
-      }
-      elseif (($node->webform['components'][$mapping[$fieldname]]['type'] == 'textarea') and ($node->webform['components'][$mapping[$fieldname]]['form_key'] == 'job_webform_script_file')) {
-
-        # create temporary file with script contained in Webform field
-        $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
-        unlink($tmpdname);
-        mkdir($tmpdname, 0700);
-        $dirs_to_cleanup[] = $tmpdname;
-        $script_filename = $tmpdname.'/drupal_job_scriptfile';
-        $script_code = $submission->data[$mapping[$fieldname]]['value'][0];
-        file_put_contents($script_filename, $script_code);
-        $files_to_cleanup[] = $script_filename;
-        chmod($script_filename, 0700);
-
-        $job_cmd = preg_replace('/%'.'webform_script_filename'.'/', $script_filename, $job_cmd);
-      }
-      else {
 
       # this is where we do "token" substitution for Webform fields (except it's not Token)
-        $job_cmd = preg_replace('/%' . $fieldname . '/', $argdata, $job_cmd);
-      }
+      $job_cmd = preg_replace('/%' . $fieldname . '/', $argdata, $job_cmd);
     }
   }
   # create temporary file with script contained in node field
@@ -177,6 +162,7 @@ function job_webform_submission_presave($node, &$submission) {
     $job_results = t('Successful shell job: %job_output', array('%job_output' => $job_output));
 
   }
+/* This code will allow for PHP-based execution, but not for now XXX
   elseif (strcmp($job_type, 'php')==0) {
     unset($job_output);
     eval($job_cmd);
@@ -188,6 +174,8 @@ function job_webform_submission_presave($node, &$submission) {
       $job_results = t('Error executing PHP job: $job_output not set');
     }
   }
+ */ 
+
   else {
     $job_results = t('Error scheduling job: unknown job type');
   }
@@ -214,127 +202,5 @@ function _job_webform_component_mapping($node) {
     $mapping[$key] = $i;
   }
   return $mapping;
-}
-
-function job_webform_select_options_info() {
-  $items = array();
-  $items['awsaccount'] = array(
-    'title' => t('AWS Account'),
-    'options callback' => 'list_aws_accounts',
-  );
-  $items['jobhost'] = array(
-    'title' => t('Job Hosts'),
-    'options callback' => 'list_job_hosts',
-  );
-  $items['awssnapshots'] = array(
-    'title' => t('AWS EBS Snapshots'),
-    'options callback' => 'list_aws_snapshots',
-  );
-  $items['awsvolumes'] = array(
-    'title' => t('AWS EBS Volumes'),
-    'options callback' => 'list_aws_volumes',
-  );
-  $items['awsinstances'] = array(
-    'title' => t('AWS EC2 Instances'),
-    'options callback' => 'list_aws_instances',
-  );
-  return $items;
-}
-
-function list_aws_accounts() {
-  $accounts = array();
-  $results = db_select('node', 'n')
-    ->fields('n', array('nid', 'title'))
-    ->condition('type', array('aws_account'), 'IN')
-    ->execute();
-  foreach ($results as $result) {
-    $accounts[$result->nid] = $result->title;
-  }
-  return $accounts;
-}
-
-function list_job_hosts() {
-  $hosts = array();
-  $results = db_select('node', 'n')
-    ->fields('n', array('nid', 'title'))
-    ->condition('type', array('job_host'), 'IN')
-    ->execute();
-  foreach ($results as $result) {
-    $hosts[$result->nid] = $result->title;
-  }
-  return $hosts;
-}
-
-function list_aws_snapshots($component, $flat, $filter, $arguments) {
-  $opts=array();
-  if (isset($_SESSION['job_aws_account'])) {
-    $node = node_load($_SESSION['job_aws_account']);
-    if ($node) {
-      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
-      $response = $ec2->describe_snapshots();
-
-      foreach ( $response->body->snapshotSet->item as $snapshot) {
-        $snapshotId =  (string)$snapshot->snapshotId;
-        $opts[$snapshotId] = $snapshotId . ': ' . $snapshot->volumeId[0] . ' (' . $snapshot->startTime[0] . ')';
-      }
-    }
-    else {
-      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-    }
-  }
-  else {
-      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-  }
-  return $opts;
-}
-
-
-function list_aws_volumes($component, $flat, $filter, $arguments) {
-  $opts=array();
-  if (isset($_SESSION['job_aws_account'])) {
-    $node = node_load($_SESSION['job_aws_account']);
-    if ($node) {
-
-      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
-      $response = $ec2->describe_volumes();
-
-      foreach ( $response->body->volumeSet->item as $volume) {
-        $volumeId = (string)$volume->volumeId;
-        $opts[$volumeId] = $volumeId . ': ' . $volume->size . 'GB (' . $volume->createTime . ')';
-      }
-    }
-    else {
-      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-    }
-  }
-  else {
-    # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-  }
-  return $opts;
-}
-
-function list_aws_instances($component, $flat, $filter, $arguments) {
-  $opts=array();
-  if (isset($_SESSION['job_aws_account'])) {
-    $node = node_load($_SESSION['job_aws_account']);
-    if ($node) {
-      $ec2 = new AmazonEC2( $node->field_aws_accesskeyid['und'][0]['value'], $node->field_aws_secretaccesskey['und'][0]['value']);
-      $response = $ec2->describe_instances();
-
-      foreach ( $response->body->reservationSet->item as $reservation) {
-        foreach ( $reservation->instancesSet->item as $instance) {
-          $instanceId = (string)$instance->instanceId;
-          $opts[$instanceId] = $instanceId . ': ' . $instance->instanceType . ' ( ' . $instance->launchTime . ')';
-        }
-      }
-    }
-    else {
-      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-    }
-  }
-  else {
-      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-  }
-  return $opts;
 }
 

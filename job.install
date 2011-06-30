@@ -1,0 +1,196 @@
+<?php
+
+/**
+ * @file
+ * Install file for Job module.
+ *
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * - Add the body field.
+ * - Configure the body field.
+ * - Create color, quantity, and image fields.
+ * - Create color, quantity, and image instances.
+ */
+function job_install() {
+  // use get_t() to get the name of our localization function for translation during install, when t() is not available.
+  $t = get_t();
+
+  // Define the node type.
+  $job = array(
+    'type' => 'job',
+    'name' => $t('Job'),
+    'base' => 'node_content',
+    'description' => $t('Jobs can be simple command-line commands or complex scripts that are managed and executed from within Drupal.'),
+    'body_label' => $t('Job Description')
+  );
+  $content_type = node_type_set_defaults($job);
+  node_add_body_field($content_type);
+  node_type_save($content_type);
+
+  // http://api.drupal.org/api/function/field_info_instance/7
+  //$body_instance = field_info_instance('node', 'body', 'job');
+  // Add our example_node_list view mode to the body instance display by
+  // instructing the body to display as a summary
+  //$body_instance['display']['example_node_list'] = array(
+    //'label' => 'hidden',
+    //'type' => 'text_summary_or_trimmed',
+  //);
+  // Save our changes to the body field instance.
+  // http://api.drupal.org/api/function/field_update_instance/7
+  //field_update_instance($body_instance);
+
+  // Create all the fields we are adding to our content type.
+  foreach (_job_installed_fields() as $field) {
+    field_create_field($field);
+  }
+
+  // Create all the instances for our fields.
+  foreach (_job_installed_instances() as $instance) {
+    $instance['entity_type'] = 'node';
+    $instance['bundle'] = $job['type'];
+    field_create_instance($instance);
+  }
+
+  // Enable Webforms on our content type
+  $webform_node_types = variable_get('webform_node_types', array('webform'));
+  if (!in_array('job', $webform_node_types)) {
+    $webform_node_types[] = 'job';
+    variable_set('webform_node_types', $webform_node_types);
+  }
+}
+
+/**
+ * Returns a structured array defining the fields created by this content type.
+ *
+ * This is packaged in a function so it can be used in both
+ * job_install() and job_uninstall().
+ */
+function _job_installed_fields() {
+  $t = get_t();
+  return array(
+    'job_type' => array(
+      'field_name' => 'job_type',
+      'cardinality' => 3,
+      'type' => 'list_text',
+      'settings'    => array(
+        'allowed_values' => array(
+          'shell' => 'Shell Command',
+          // 'php' => 'PHP Function',  future feature XXX
+        ),
+        'allowed_values_function' => '',
+      ),
+    ),
+    'job_command' => array(
+      'field_name'  => 'job_command',
+      'cardinality' => 1,
+      'type'        => 'text_long',
+      'settings'    => array(),
+    ),
+    'job_script' => array(
+      'field_name'  => 'job_script',
+      'cardinality' => 1,
+      'type'        => 'text_long',
+      'settings'    => array(),
+    ),
+  );
+}
+
+/**
+ * Returns a structured array defining the instances for this content type.
+ *
+ * The instance lets Drupal know which widget to use to allow the user to enter
+ * data and how to react in different view modes.  We are going to display a
+ * page that uses a custom "job_list" view mode.  We will set a
+ * cardinality of three allowing our content type to give the user three color
+ * fields.
+ *
+ * This is provided as a function so that it can be used in both hook_install()
+ * and hook_uninstall().
+ */
+function _job_installed_instances() {
+  $t = get_t();
+  return array(
+    'job_type' => array(
+      'field_name' => 'job_type',
+      'label'       => $t('Job Type'),
+      'required'        => '1',
+      'widget'      => array(
+        'type'    => 'options_buttons',
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'Job Type',
+          'type' => 'list_default',
+        ),
+      ),
+    ),
+    'job_command' => array(
+      'field_name'  => 'job_command',
+      'label' => $t('Job Command'),
+      'required'        => '1',
+      'widget'      => array(
+        'type'    => 'text_textarea',
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'hidden',
+          'type' => 'text_default',
+        ),
+      ),
+    ),
+    'job_script' => array(
+      'field_name'  => 'job_script',
+      'label' => $t('Job Script'),
+      'required'        => '0',
+      'widget'      => array(
+        'type'    => 'text_textarea',
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'hidden',
+          'type' => 'text_default',
+        ),
+      ),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_uninstall().
+ */
+function job_uninstall() {
+  // Gather all the example content that might have been created while this
+  // module was enabled.  Simple selects still use db_query().
+  $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+  $result = db_query($sql, array(':type' => 'job'));
+  $nids = array();
+  foreach ($result as $row) {
+    $nids[] = $row->nid;
+  }
+
+  // Delete all the nodes at once
+  node_delete_multiple($nids);
+
+  // Loop over each of the fields defined by this module and delete
+  // all instances of the field, their data, and the field itself.
+  foreach (array_keys(_job_installed_fields()) as $field) {
+    field_delete_field($field);
+  }
+
+  // Loop over any remaining field instances attached to the job
+  // content type (such as the body field) and delete them individually.
+  $instances = field_info_instances('node', 'job');
+  foreach ($instances as $instance_name => $instance) {
+    field_delete_instance($instance);
+  }
+
+  // Delete our content type
+  node_type_delete('job');
+
+  // Purge all field infromation
+  field_purge_batch(1000);
+}

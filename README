@@ -41,18 +41,3 @@ TODO LIST
 
 I am marking known todos in the code with "XXX" so it is easy to grep for them.  
 
-job.features.inc:      'description' => t('Manage execution of external jobs, such as XXX and XXX.'),
-job.module:require_once('sdkforphp/sdk.class.php');  # XXX fix this to look in sites/all/libraries too
-job.module:require_once('jobs/jobs.aws');            # XXX this should include appropriately-named files from the jobs directory, no be hardcoded
-job.module:          # Add custom token-like strings for command substitution - XXX this probably should use token module!
-job.module:    # put the aws account info somewhere it is accessible to webform_select_options_info() - XXX is there a better way to do this?
-job.module:  if (0) {  # XXX huge todo - validate job here!
-job.module:    # XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
-job.module:      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-job.module:      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-job.module:      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-job.module:    # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-job.module:      drupal_set_message(t('XXX no account credentials for aws_account field.'), 'error');
-job.module:      # drupal_set_message(t('XXX aws_snapshots field must be placed on a webform page break after an aws_account field.'), 'error');
-
-
