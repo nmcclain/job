@@ -17,7 +17,8 @@ function job_permission() {
 }
 
 function job_node_presave($node) {
-  if ($node->type == 'job') {
+  if (($node->type == 'job') and (!$node->nid)) { // this only applies on NEW job nodes
+
     // Customize the Webform to work better for Jobs
     $node->webform['confirmation'] = 'Job complete!';
     $node->webform['redirect_url'] = 'node/%nid/submission/%sid';
