@@ -87,7 +87,7 @@ function job_form_alter(&$form, $form_state, $form_id) {
           $available_webform_fields[] = '%' . $component['form_key'];
         }
         // provide substitution for saving a field to a temp file if the appropriate node field exists
-        if (isset($form['job_scriptfile'])) {
+        if (isset($form['job_script'])) {
           $available_webform_fields[] = '%' . 'script_filename';
         }
         $form['job_command']['und'][0]['value']['#description'] = t('The following Job fields are available for substitution: %fields', array('%fields' => join(', ', $available_webform_fields)));
@@ -125,14 +125,14 @@ function job_webform_submission_presave($node, &$submission) {
     }
   }
   // create temporary file with script contained in node field
-  if ((isset($node->job_scriptfile['und'])) and (drupal_strlen($node->job_scriptfile['und'][0]['value'])>0)) {
-    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
+  if ((isset($node->job_script['und'])) and (drupal_strlen($node->job_script['und'][0]['value'])>0)) {
+    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scripttmp');
     unlink($tmpdname);
     mkdir($tmpdname, 0700);
     $dirs_to_cleanup[] = $tmpdname;
-    $script_filename = $tmpdname . '/drupal_job_scriptfile';
-    $script_code = $node->job_scriptfile['und'][0]['value'];
-    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scriptfiletmp');
+    $script_filename = $tmpdname . '/drupal_job_script';
+    $script_code = $node->job_script['und'][0]['value'];
+    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scripttmp');
     file_put_contents($script_filename, $script_code);
     $files_to_cleanup[] = $script_filename;
     chmod($script_filename, 0700);
