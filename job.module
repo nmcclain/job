@@ -9,6 +9,12 @@
  * by leveraging the power of the webform module.
  */
 
+define('JOB_RESULT_CODE_PENDING', 0);
+define('JOB_RESULT_CODE_SUCCESS', 1);
+define('JOB_RESULT_CODE_FAIL',    2);
+define('JOB_RESULT_CODE_ERROR_VALIDATION', 10);
+define('JOB_RESULT_CODE_UNKNOWNJOBTYPE', 11);
+
 /**
  * Implements hook_permission().
  */
@@ -26,14 +32,36 @@ function job_node_presave($node) {
     // Add the Results Webform field automatically to hold Job results
     $node->webform['components'] = array();
     $node->webform['components'][1] = array(
-      'form_key' => 'results',
-      'name' => 'Results',
+      'form_key' => 'result_code',
+      'name' => 'Result Code',
+      'pid' => 0,
+      'type' => 'textarea',
+      'value' => '0',
+      'page_num' => 1,
+      'mandatory' => '0',
+      'weight' => '1000',
+      'extra' => array(
+        'title_display' => 0,
+        'rows' => '1',
+        'resizable' => 0,
+        'disabled' => 1,
+        'conditional_operator' => '=',
+        'cols' => '',
+        'description' => '',
+        'attributes' => array(),
+        'conditional_component' => '',
+        'conditional_values' => '',
+      ),
+    );
+    $node->webform['components'][2] = array(
+      'form_key' => 'result',
+      'name' => 'Result',
       'pid' => 0,
       'type' => 'textarea',
       'value' => 'Ignore this field for now - Job results will be placed here.',
       'page_num' => 1,
       'mandatory' => '0',
-      'weight' => '1000',
+      'weight' => '1002',
       'extra' => array(
         'title_display' => 0,
         'rows' => '1',
@@ -63,20 +91,20 @@ function job_form_alter(&$form, $form_state, $form_id) {
 
     // custom submit handler so our custom options lists can access data from webform components on previous form pages
     // currenlty, multistep forms are used so you can pick an AWS account on one step, and the related AWS instance or volume on the next
-    $form['#submit'][] = 'job_webform_multistep_submit';
+    //$form['#submit'][] = 'job_webform_multistep_submit';
 
     // not used: cleanup SESSION variables used for passing state to option lists on multistep forms
     // not used: unset($_SESSION['job_aws_account']);
 
     if ($form_id == 'job_node_form') {
-      // XXX do we want to hide the webform results textfield component when displaying the node?
+      // XXX do we want to hide the result/result_code webform components when displaying the node?
 
       // available weform fields
       $available_webform_fields = array();
-      $found_results_field=0;
+      $found_result_field=0;
       if (isset($form['webform'])) {
         foreach ($form['webform']['#value']['components'] as $component) {
-          if ($component['form_key']=='results') {
+          if (($component['form_key']=='result') or ($component['form_key']=='result_code')) {
             continue;
           }
           if ($component['type']=='pagebreak') {
@@ -104,79 +132,87 @@ function job_webform_multistep_submit($form, &$form_state) {
 }
 
 function job_webform_submission_presave($node, &$submission) {
-  if (0) {  // XXX huge todo - validate job here!
-    $job_results = 'Error validating job';
-  }
-
+  // this is where the action happens - the job is executed and the results are saved in the webform
+  $job_result_code= JOB_RESULT_CODE_PENDING;
+  $job_result = '';
+  $job_cmd = '';
   $mapping = _job_webform_component_mapping($node);
-  // schedule job here!
-  $job_results = t('Scheduled for execution');
   $job_type = $node->job_type['und'][0]['value'];
   $job_cmd = trim($node->job_command['und'][0]['value']);
 
-  $files_to_cleanup = array(); // keep track of temp files and dirs so we can delete them when the job is done
-  $dirs_to_cleanup = array();
-  foreach (array_keys($mapping) as $fieldname) {
-    if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
-      $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
+  if (0) {  // XXX huge todo - validate job here!
+    $job_result .= t('Error validating job');
+    $job_result_code= JOB_RESULT_CODE_ERROR_VALIDATION;
 
-      // this is where we do "token" substitution for Webform fields (except it's not Token)
-      $job_cmd = preg_replace('/%' . $fieldname . '/', $argdata, $job_cmd);
+  } else {
+    // schedule job here!
+    $job_result .= t('Scheduled for execution');
+
+    $files_to_cleanup = array(); // keep track of temp files and dirs so we can delete them when the job is done
+    $dirs_to_cleanup = array();
+    foreach (array_keys($mapping) as $fieldname) {
+      if (isset($submission->data[$mapping[$fieldname]]['value'][0])) {
+        $argdata = $submission->data[$mapping[$fieldname]]['value'][0];
+
+        // this is where we do "token" substitution for Webform fields (except it's not Token)
+        $job_cmd = preg_replace('/%' . $fieldname . '/', $argdata, $job_cmd);
+      }
     }
-  }
-  // create temporary file with script contained in node field
-  if ((isset($node->job_script['und'])) and (drupal_strlen($node->job_script['und'][0]['value'])>0)) {
-    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scripttmp');
-    unlink($tmpdname);
-    mkdir($tmpdname, 0700);
-    $dirs_to_cleanup[] = $tmpdname;
-    $script_filename = $tmpdname . '/drupal_job_script';
-    $script_code = $node->job_script['und'][0]['value'];
-    $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scripttmp');
-    file_put_contents($script_filename, $script_code);
-    $files_to_cleanup[] = $script_filename;
-    chmod($script_filename, 0700);
+    // create temporary file with script contained in node field
+    if ((isset($node->job_script['und'])) and (drupal_strlen($node->job_script['und'][0]['value'])>0)) {
+      $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scripttmp');
+      unlink($tmpdname);
+      mkdir($tmpdname, 0700);
+      $dirs_to_cleanup[] = $tmpdname;
+      $script_filename = $tmpdname . '/drupal_job_script';
+      $script_code = $node->job_script['und'][0]['value'];
+      $tmpdname = tempnam(sys_get_temp_dir(), 'drupal_job_scripttmp');
+      file_put_contents($script_filename, $script_code);
+      $files_to_cleanup[] = $script_filename;
+      chmod($script_filename, 0700);
 
-    $job_cmd = preg_replace('/%script_filename/', $script_filename, $job_cmd);
-  }
-
-  // execute the job now
-  if (strcmp($job_type, 'shell')==0) {
-    $job_output = shell_exec($job_cmd . ' 2>&1');
-    // XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field
-    $job_results = t('Successful Shell Job') . ': ' . check_plain( $job_output);
-
-  }
-/* This code will allow for PHP-based execution, but not for now XXX
-  elseif (strcmp($job_type, 'php')==0) {
-    unset($job_output);
-    eval($job_cmd);
-    if (isset($job_output)) {
-      $job_results = t('Successful PHP job: %job_output', array('%job_output' => $job_output));
+      $job_cmd = preg_replace('/%script_filename/', $script_filename, $job_cmd);
     }
+
+    // execute the job now
+    if (strcmp($job_type, 'shell')==0) {
+      $job_output = shell_exec($job_cmd . ' 2>&1');
+      // XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field -- $job_result_code= JOB_RESULT_CODE_FAIL
+      $job_result .= t('Successful Shell Job') . ': ' . check_plain( $job_output);
+      $job_result_code= JOB_RESULT_CODE_SUCCESS;
+    }
+  /* This code will allow for PHP-based execution, but not for now XXX
+    elseif (strcmp($job_type, 'php')==0) {
+      unset($job_output);
+      eval($job_cmd);
+      if (isset($job_output)) {
+        $job_result .= t('Successful PHP job: %job_output', array('%job_output' => $job_output));
+      }
+      else {
+        $job_output = FALSE;
+        $job_result .= t('Error executing PHP job: $job_output not set');
+      }
+    }
+   */
     else {
-      $job_output = FALSE;
-      $job_results = t('Error executing PHP job: $job_output not set');
+      $job_result .= t('Error scheduling job: unknown job type');
+      $job_result_code= JOB_RESULT_CODE_UNKNOWNJOBTYPE;
+    }
+
+    // cleanup
+    foreach ($files_to_cleanup as $clean_me_up) {
+      unlink($clean_me_up);
+    }
+    foreach ($dirs_to_cleanup as $clean_me_up) {
+      rmdir($clean_me_up);
     }
   }
- */
 
-  else {
-    $job_results = t('Error scheduling job: unknown job type');
-  }
-
-  // cleanup
-  foreach ($files_to_cleanup as $clean_me_up) {
-    unlink($clean_me_up);
-  }
-  foreach ($dirs_to_cleanup as $clean_me_up) {
-    rmdir($clean_me_up);
-  }
-
-  // results
-  $job_results .= "\n\n" . t('Job Command') . ': ' . check_plain($job_cmd);
-  watchdog('job', $job_results);
-  $submission->data[$mapping['results']] = array( 'value' => array( 0 => $job_results));
+  // result
+  $job_result .= "\n\n" . t('Job Command') . ': ' . check_plain($job_cmd);
+  $submission->data[$mapping['result']] = array( 'value' => array( 0 => $job_result));
+  $submission->data[$mapping['result_code']] = array( 'value' => array( 0 => $job_result_code));
+  watchdog('job', $job_result);
 }
 
 function _job_webform_component_mapping($node) {

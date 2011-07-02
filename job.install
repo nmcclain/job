@@ -29,7 +29,7 @@ function job_install() {
     'body_label' => $t('Job Description')
   );
   $content_type = node_type_set_defaults($job);
-  node_add_body_field($content_type);
+  //node_add_body_field($content_type);
   node_type_save($content_type);
 
   // http://api.drupal.org/api/function/field_info_instance/7
@@ -73,6 +73,12 @@ function job_install() {
 function _job_installed_fields() {
   $t = get_t();
   return array(
+    'job_description' => array(
+      'field_name'  => 'job_description',
+      'cardinality' => 1,
+      'type'        => 'text_long',
+      'settings'    => array(),
+    ),
     'job_type' => array(
       'field_name' => 'job_type',
       'cardinality' => 3,
@@ -90,6 +96,14 @@ function _job_installed_fields() {
       'cardinality' => 1,
       'type'        => 'text_long',
       'settings'    => array(),
+    ),
+    'job_success_regex' => array(
+      'field_name'  => 'job_success_regex',
+      'cardinality' => 1,
+      'type'        => 'text',
+      'settings'    => array(
+         'max_length' => '255',
+       ),
     ),
     'job_script' => array(
       'field_name'  => 'job_script',
@@ -115,45 +129,84 @@ function _job_installed_fields() {
 function _job_installed_instances() {
   $t = get_t();
   return array(
-    'job_type' => array(
-      'field_name' => 'job_type',
-      'label'       => $t('Job Type'),
-      'required'        => '1',
-      'widget'      => array(
-        'type'    => 'options_buttons',
+    'job_description' => array(
+      'field_name' => 'job_description',
+      'label'      => $t('Job Description'),
+      'required'   => '0',
+      'widget'     => array(
+        'type'       => 'text_textarea',
+        'weight'     => '10',
+          'settings' => array(
+            'rows' => '2',
+          ),
       ),
       'display' => array(
         'default' => array(
-          'label' => 'Job Type',
-          'type' => 'list_default',
+          'label'      => $t('Job Description'),
+          'type'    => 'text_default',
+        ),
+      ),
+    ),
+    'job_type'  => array(
+      'field_name' => 'job_type',
+      'label'      => $t('Job Type'),
+      'required'   => '1',
+      'widget'     => array(
+        'type'       => 'options_buttons',
+        'weight'     => '12',
+      ),
+      'display' => array(
+        'default' => array(
+          'label'   => $t('Job Type'),
+          'type'    => 'list_default',
         ),
       ),
     ),
     'job_command' => array(
-      'field_name'  => 'job_command',
-      'label' => $t('Job Command'),
-      'required'        => '1',
-      'widget'      => array(
-        'type'    => 'text_textarea',
+      'field_name' => 'job_command',
+      'label'      => $t('Job Command'),
+      'required'   => '1',
+      'widget'     => array(
+        'type'       => 'text_textarea',
+        'weight'     => '14',
       ),
       'display' => array(
         'default' => array(
-          'label' => 'hidden',
-          'type' => 'text_default',
+          'label'   => $t('Job Command'),
+          'type'    => 'text_default',
+        ),
+      ),
+    ),
+    'job_success_regex' => array(
+      'field_name'  => 'job_success_regex',
+      'label'      => $t('Job Success REGEX'),
+      'required'   => '0',
+      'widget'     => array(
+        'type'       => 'text_textfield',
+        'weight'     => '16',
+      ),
+      'display' => array(
+        'default' => array(
+          'label'   => $t('Job Success REGEX'),
+          'type'    => 'text_default',
+          'settings' => array(
+            'size' => '60',
+          ),
         ),
       ),
     ),
     'job_script' => array(
-      'field_name'  => 'job_script',
-      'label' => $t('Job Script'),
-      'required'        => '0',
-      'widget'      => array(
-        'type'    => 'text_textarea',
+      'field_name' => 'job_script',
+      'label'      => $t('Job Script'),
+      'required'   => '0',
+      'widget'     => array(
+        'type'       => 'text_textarea',
+        'weight'     => '16',
       ),
       'display' => array(
         'default' => array(
-          'label' => 'hidden',
-          'type' => 'text_default',
+          'label'   => $t('Job Script'),
+          'type'    => 'text_default',
         ),
       ),
     ),

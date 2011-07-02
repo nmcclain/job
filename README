@@ -1,15 +1,5 @@
 // $Id$
 
-WARNING: This module is under development and not intended for production use.  In particular, this module provides "command-line" and unlimited PHP access to users, so it should be tested with great caution.  I hope to get to a publicly-usable development version by Fall 2011.
-
-
-CONTENTS OF THIS FILE
----------------------
-
- * Introduction
- * Installation
- * Todo list
-
 
 INTRODUCTION
 ------------
@@ -21,7 +11,6 @@ WARNING: This module is under development and not intended for production use.  
 This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms.  It is the very beginnings of a CI (Continuous Integration) platform - an attempt to reimplement some of what Jenkins does in Drupal.
 
 
-
 INSTALLATION
 ------------
 
@@ -29,15 +18,13 @@ This should outline a step-by-step explanation of how to install the
 module.
 
 0. This is all experimental -- please provide feedback so I can fix bugs!
-1. Requires all these modules: features link list node_reference taxonomy views webform
+1. Requires the Webform module
 2. Install and enable as usual, see http://drupal.org/node/70151 for further information.
 
-Optional:
-- If you want to try the AWS integration, you need to download the AWS SDK from:  http://aws.amazon.com/sdkforphp/
-  Put the sdkforphp directory at sites/all/modules/job/sdkforphp - XXX better directions for this
 
 TODO LIST
 ------------
 
 I am marking known todos in the code with "XXX" so it is easy to grep for them.  
+
 
