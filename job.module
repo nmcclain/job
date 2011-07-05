@@ -19,7 +19,12 @@ define('JOB_RESULT_CODE_UNKNOWNJOBTYPE', 11);
  * Implements hook_permission().
  */
 function job_permission() {
-  return array('administer jobs');
+  return array(
+    'administer job' => array(
+      'title' => t('administer job'),
+      'description' => t('Administer Job module'),
+    ),
+  );
 }
 
 function job_node_presave($node) {
