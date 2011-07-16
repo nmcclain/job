@@ -1,9 +1,8 @@
 // $Id$
 
+This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms. It is the very beginnings of an automation and CI (Continuous Integration) platform - an attempt to reimplement some of what Jenkins does in Drupal. For now, there is no scheduling or automated Job execution, but it currently provides an excellent way to provide a simple GUI that allows end users to safely execute complex infrastructure tasks.
 
-This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms. It is the very beginnings of an automation and CI (Continuous Integration) platform - an attempt to reimplement some of what Jenkins does in Drupal. For now, there is no scheduling or automated Job execution, but it currently provides an excellent way to provide a simple GUI that allows end users to execute complex infrastructure tasks.
-
-Each Job is a node with an attached Webform. Executing a Job is simple - just complete the form fields and submit.
+Each Job is a node with an attached Webform. The Webform references a command-line command, optionally with arguments presented as form fields. Executing a Job is simple - just complete the form fields and submit. The command-line command is executed, with any user-selected options as arguments. Job results are stored as Webform submissions.
 
 Because it is built on Webform Job offers some cool features:
  * Web-based interface for implementing infrastructure Jobs (PHP, BASH, or other shell scripts) 
