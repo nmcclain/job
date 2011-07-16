@@ -20,9 +20,9 @@ define('JOB_RESULT_CODE_UNKNOWNJOBTYPE', 11);
  */
 function job_permission() {
   return array(
-    'administer job' => array(
-      'title' => t('administer job'),
-      'description' => t('Administer Job module'),
+    'use job' => array(
+      'title' => t('use job'),
+      'description' => t('Use the Job module'),
     ),
   );
 }
@@ -102,8 +102,6 @@ function job_form_alter(&$form, $form_state, $form_id) {
     // not used: unset($_SESSION['job_aws_account']);
 
     if ($form_id == 'job_node_form') {
-      // XXX do we want to hide the result/result_code webform components when displaying the node?
-
       // available weform fields
       $available_webform_fields = array();
       $found_result_field=0;
@@ -128,6 +126,10 @@ function job_form_alter(&$form, $form_state, $form_id) {
       else {
         drupal_set_message(t('Webform must be enabled for the Job module to work properly'), 'error');
       }
+
+    } else if (preg_match('/^webform_client_form_\d+$/', $form_id)) {
+      // add CSS to hide the result & result_code webform components when displaying the node webform
+      drupal_add_css(drupal_get_path('module', 'job') . '/job.css');
     }
   }
 }
@@ -150,8 +152,7 @@ function job_webform_submission_presave($node, &$submission) {
     $job_result_code= JOB_RESULT_CODE_ERROR_VALIDATION;
 
   } else {
-    // schedule job here!
-    $job_result .= t('Scheduled for execution');
+    // TODO: someday, add job scheduling instead of running jobs inline: $job_result .= t('Scheduled for execution');
 
     $files_to_cleanup = array(); // keep track of temp files and dirs so we can delete them when the job is done
     $dirs_to_cleanup = array();
@@ -186,7 +187,7 @@ function job_webform_submission_presave($node, &$submission) {
       $job_result .= t('Successful Shell Job') . ': ' . check_plain( $job_output);
       $job_result_code= JOB_RESULT_CODE_SUCCESS;
     }
-  /* This code will allow for PHP-based execution, but not for now XXX
+  /* TODO: This code will allow for PHP-based execution, but this is not fully tested yet
     elseif (strcmp($job_type, 'php')==0) {
       unset($job_output);
       eval($job_cmd);
@@ -200,7 +201,7 @@ function job_webform_submission_presave($node, &$submission) {
     }
    */
     else {
-      $job_result .= t('Error scheduling job: unknown job type');
+      $job_result .= t('Error running job: unknown job type');
       $job_result_code= JOB_RESULT_CODE_UNKNOWNJOBTYPE;
     }
 

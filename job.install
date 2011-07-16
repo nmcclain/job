@@ -62,6 +62,9 @@ function job_install() {
     $webform_node_types[] = 'job';
     variable_set('webform_node_types', $webform_node_types);
   }
+
+  // Set default Publishing Options for our content type
+  variable_set('node_options_job', array( 0 => 'status', 1 => 'revision' ));
 }
 
 /**
@@ -86,7 +89,7 @@ function _job_installed_fields() {
       'settings'    => array(
         'allowed_values' => array(
           'shell' => 'Shell Command',
-          // 'php' => 'PHP Function',  future feature XXX
+          // 'php' => 'PHP Function',  TODO: I plan to add this in the future - see ~line 190 in job.module
         ),
         'allowed_values_function' => '',
       ),
@@ -218,6 +221,21 @@ function _job_installed_instances() {
  * Implements hook_uninstall().
  */
 function job_uninstall() {
+  // Disable Webforms for our content type
+  $webform_node_types = variable_get('webform_node_types', array('webform'));
+  if (in_array('job', $webform_node_types)) {
+    unset($webform_node_types[array_search('job', $webform_node_types)]);
+    variable_set('webform_node_types', $webform_node_types);
+  }
+
+  // Delete job content type configuration variables
+  variable_del('node_options_job');
+  variable_del('additional_settings__active_tab_job');
+  variable_del('node_preview_job');
+  variable_del('node_submitted_job');
+  variable_del('menu_options_job');
+  variable_del('menu_parent_job');
+
   // Gather all the example content that might have been created while this
   // module was enabled.  Simple selects still use db_query().
   $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';

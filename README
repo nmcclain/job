@@ -1,14 +1,23 @@
 // $Id$
 
 
-INTRODUCTION
-------------
+This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms. It is the very beginnings of an automation and CI (Continuous Integration) platform - an attempt to reimplement some of what Jenkins does in Drupal. For now, there is no scheduling or automated Job execution, but it currently provides an excellent way to provide a simple GUI that allows end users to execute complex infrastructure tasks.
+
+Each Job is a node with an attached Webform. Executing a Job is simple - just complete the form fields and submit.
+
+Because it is built on Webform Job offers some cool features:
+ * Web-based interface for implementing infrastructure Jobs (PHP, BASH, or other shell scripts) 
+ * Excellent control over Job arguments through Webform's many form field types
+ * Email-based reporting and Job result history are standard Webform features
+ * Integration with many cool modules (see OPTIONAL MODULES below)
+ * Extensibility for developers via Webform's useful hooks
+ * Implemented via hook_form_alter(), not hacking on the Webform module
+
+WARNING: This module is under development and not intended for production use. In particular, this module provides "command-line" and unlimited PHP access to users in any role granted the "use job" permission, so it should be tested with great caution. Note that Webform also provides per-form access control to give you a little more granularity. I hope to get to a more-secure, publicly-usable development version by late Fall 2011.
+
+No Windows support at this time. YMMV with shared hosting.
 
 Current Maintainer: Ned <http://drupal.org/user/798324>
-
-WARNING: This module is under development and not intended for production use.  In particular, this module provides "command-line" and unlimited PHP access to users, so it should be tested with great caution.  I hope to get to a publicly-usable development version by Fall 2011.
-
-This Drupal module provides very basic management of external jobs by leveraging Webform for building argument forms.  It is the very beginnings of a CI (Continuous Integration) platform - an attempt to reimplement some of what Jenkins does in Drupal.
 
 
 INSTALLATION
@@ -22,9 +31,26 @@ module.
 2. Install and enable as usual, see http://drupal.org/node/70151 for further information.
 
 
+OPTIONAL MODULES
+------------
+
+webform_validation: Provides powerful form field validation - essential if you don't trust the users submitting your Jobs.
+content_access: Gives you role-based access control over Jobs as a content type or individually - Useful with more than a handful of users. Essential in cases where you need to grant "view published content" to anonymous users, so you can prevent anonymous users for seeing your Jobs. Any alternative to content_access that works with Webform should work with Job as well.
+views: This module doesn't directly integrate with Views, but piggybacks on Webform's excellent Views integration. You can use this to provide pages or blocks such as "recent Jobs", "recent Failed Jobs", etc.
+webform_rules: Provides Rules integration for Webform. This allows you to go beyond Webform's built-in ability to send emails upon submission. With Rules you can create new nodes when Jobs are submitted, send SMS messages (via smsframework), or almost anything you can imagine!
+
+Likely most other modules that work with Webform.
+
+
+DEVELOPERS
+------------
+
+This is a TODO, but note that you can use the existing Webform hooks (see modules/webform/webform_hooks.php) to take additional actions just before or after a Job form is submitted.
+
+
 TODO LIST
 ------------
 
-I am marking known todos in the code with "XXX" so it is easy to grep for them.  
+I am marking known todos in the code with "TODO" so it is easy to grep for them. 
 
 
