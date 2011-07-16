@@ -147,11 +147,15 @@ function job_webform_submission_presave($node, &$submission) {
   $job_type = $node->job_type['und'][0]['value'];
   $job_cmd = trim($node->job_command['und'][0]['value']);
 
-  if (0) {  // XXX huge todo - validate job here!
-    $job_result .= t('Error validating job');
+  // validate regex matches our expectations
+  if (( isset($node->job_success_regex['und'][0]['value']) ) and ( !preg_match('/^\/.*\/$/', $node->job_success_regex['und'][0]['value']) )) {
+    $job_result .= t('Error validating job: REGEX must start end end with a slash: /');
     $job_result_code= JOB_RESULT_CODE_ERROR_VALIDATION;
+  }
 
-  } else {
+  // TODO: add more "job validation" here - need to determine what that would be
+
+  else {
     // TODO: someday, add job scheduling instead of running jobs inline: $job_result .= t('Scheduled for execution');
 
     $files_to_cleanup = array(); // keep track of temp files and dirs so we can delete them when the job is done
@@ -183,9 +187,25 @@ function job_webform_submission_presave($node, &$submission) {
     // execute the job now
     if (strcmp($job_type, 'shell')==0) {
       $job_output = shell_exec($job_cmd . ' 2>&1');
-      // XXX huge todo - check for success/fail here - do this by checking job output against regex defined in optional node field -- $job_result_code= JOB_RESULT_CODE_FAIL
-      $job_result .= t('Successful Shell Job') . ': ' . check_plain( $job_output);
-      $job_result_code= JOB_RESULT_CODE_SUCCESS;
+      // XXX huge TODO - check for success/fail here - do this by checking job output against regex defined in optional node field -- $job_result_code= JOB_RESULT_CODE_FAIL
+      if ( isset($node->job_success_regex['und'][0]['value']) ) {
+
+        // run the regex against the Job output
+        if (preg_match( $node->job_success_regex['und'][0]['value'].'msU', $job_output) ) {
+          $job_result .= t('Successful Shell Job') . ': ';
+          $job_result .= check_markup( $job_output); // TODO: do we want to actually render the HTML?
+          $job_result_code= JOB_RESULT_CODE_SUCCESS;
+        } else {
+          $job_result .= t('Unsuccessful Shell Job') . ': ';
+          $job_result .= check_markup( $job_output);
+          $job_result_code= JOB_RESULT_CODE_FAIL;
+        }
+      }
+      else {
+        $job_result .= t('Successful Shell Job') . ': ';
+        $job_result .= check_markup( $job_output);
+        $job_result_code= JOB_RESULT_CODE_SUCCESS;
+      }
     }
   /* TODO: This code will allow for PHP-based execution, but this is not fully tested yet
     elseif (strcmp($job_type, 'php')==0) {
@@ -216,9 +236,12 @@ function job_webform_submission_presave($node, &$submission) {
 
   // result
   $job_result .= "\n\n" . t('Job Command') . ': ' . check_plain($job_cmd);
+  if ( isset($node->job_success_regex['und'][0]['value']) ) {
+    $job_result .= "\n\n" . t('Job Success REGEX') . ': ' . check_plain($node->job_success_regex['und'][0]['value']);
+  }
   $submission->data[$mapping['result']] = array( 'value' => array( 0 => $job_result));
   $submission->data[$mapping['result_code']] = array( 'value' => array( 0 => $job_result_code));
-  watchdog('job', $job_result);
+  watchdog('job', $job_result); // TODO: clean this up - don't duplicate so much info in the watchdog log?
 }
 
 function _job_webform_component_mapping($node) {
