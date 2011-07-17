@@ -193,17 +193,17 @@ function job_webform_submission_presave($node, &$submission) {
         // run the regex against the Job output
         if (preg_match( $node->job_success_regex['und'][0]['value'].'msU', $job_output) ) {
           $job_result .= t('Successful Shell Job') . ': ';
-          $job_result .= check_markup( $job_output); // TODO: do we want to actually render the HTML?
+          $job_result .= check_plain( $job_output); // TODO: do we want to actually render the HTML?
           $job_result_code= JOB_RESULT_CODE_SUCCESS;
         } else {
           $job_result .= t('Unsuccessful Shell Job') . ': ';
-          $job_result .= check_markup( $job_output);
+          $job_result .= check_plain( $job_output);
           $job_result_code= JOB_RESULT_CODE_FAIL;
         }
       }
       else {
         $job_result .= t('Successful Shell Job') . ': ';
-        $job_result .= check_markup( $job_output);
+        $job_result .= check_plain( $job_output);
         $job_result_code= JOB_RESULT_CODE_SUCCESS;
       }
     }
