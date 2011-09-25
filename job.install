@@ -235,6 +235,7 @@ function job_uninstall() {
   variable_del('node_submitted_job');
   variable_del('menu_options_job');
   variable_del('menu_parent_job');
+  variable_del('job_global_token');
 
   // Gather all the example content that might have been created while this
   // module was enabled.  Simple selects still use db_query().

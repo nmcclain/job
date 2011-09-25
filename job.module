@@ -27,6 +27,20 @@ function job_permission() {
   );
 }
 
+/**
+ * Implements hook_menu().
+ */
+function job_menu() {
+  $items['job/%/submit/%'] = array(
+    'title' => 'Submit Job',
+    'description' => 'Submit a Job programatically with a URL.',
+    'page callback' => 'job_webform_submit',
+    'page arguments' => array(1, 3),
+    'access arguments' => array('use job'), 
+  );
+  return $items;
+}
+
 function job_node_presave($node) {
   if (($node->type == 'job') and (!$node->nid)) { // this only applies on NEW job nodes
 
@@ -92,6 +106,7 @@ function job_node_presave($node) {
  * Implements hook_form_alter().
  */
 function job_form_alter(&$form, $form_state, $form_id) {
+  global $base_url;
   if (isset($form['#node']->type) and ($form['#node']->type == 'job')) {
 
     // custom submit handler so our custom options lists can access data from webform components on previous form pages
@@ -132,7 +147,7 @@ function job_form_alter(&$form, $form_state, $form_id) {
 
       $form['job_submit_link'] = array(
         '#type' => 'markup',
-        '#markup' => '<div style="float:right">' . l(t('Link to submit with defaults'), 'job/'.$form['#node']->nid.'/submit') . '</div>',
+        '#markup' => '<div id="job-submit-link-container" style="float:right">' . l(t('Link to submit with defaults'), 'job/'.$form['#node']->nid.'/submit/'.job_fetch_global_token(), array('attributes' => array('id' => 'job-submit-link'))) . '</div><script>jQuery("#job-submit-link").click(function() { jQuery("#job-submit-link-container").html("<input id=\"job-submit-link-input\" size=60 type=text value=\"'.$base_url.'/job/'.$form['#node']->nid.'/submit/'.job_fetch_global_token().'\">"); jQuery("#job-submit-link-input").select(); return false;} );</script>',
       );
       // add CSS to hide the result & result_code webform components when displaying the node webform
       drupal_add_css(drupal_get_path('module', 'job') . '/job.css');
@@ -265,18 +280,34 @@ function _job_webform_component_mapping($node) {
  *  For submitting webforms programatically
  *  Calls the webform submit handler for saving the form values and sending e-mails
  */
-function job_webform_submit($nid) {
+function job_webform_submit($nid, $token=0) {
   $node = node_load($nid);
   if (!isset($node->webform)) {
-    die('no webform at this node XXX');
+    drupal_json_output(array(
+      'success' => FALSE,
+      'message' => 'no webform at this node XXX'
+    ));
     return;
   }
+
+  $validtoken = job_fetch_global_token();
+  if ($token != $validtoken)  {
+    drupal_json_output(array(
+      'success' => FALSE,
+      'message' => 'Bad token'
+    ));
+    dd('invalid token XXX');
+    return;
+  }
+
+  $form = NULL;
   $form = webform_client_form($form, NULL, $node, NULL);
 
   $form_state = array();
   $form_state['webform_completed'] = TRUE;
+  $form_state['values']['details']['finished'] = TRUE;
+  $form_state['values']['details']['sid'] = NULL;
   $form_state['values']['details']['uid'] = 0;
-  #'data' => webform_submission_data($node, $form_state['values']['submitted']),
   
   // load the webform's components and set submitted values to defaults
   foreach($node->webform['components'] as $cid => $component) {
@@ -286,5 +317,30 @@ function job_webform_submit($nid) {
   // submit the webform
   webform_client_form_submit($form, $form_state);
 
+  drupal_json_output(array('success' => TRUE));
+}
+
+function job_generate_global_token() {
+    $token_length=16;
+    $chars = "abcdefghijkmnopqrstuvwxyz023456789ABCDEFGHIJKMNOPQRSTUVWXYZ";
+    $chars_length = strlen($chars);
+    srand((double)microtime()*1000000);
+    $i = 0;
+    $tok = '' ;
+    while ($i < $token_length) {
+        $num = rand() % $chars_length;
+        $tmp = substr($chars, $num, 1);
+        $tok = $tok . $tmp;
+        $i++;
+    }   
+    return $tok;
+}
+function job_fetch_global_token() {
+  $token = variable_get('job_global_token');
+  if (!$token) {
+    $token = job_generate_global_token();
+    variable_set('job_global_token', $token);
+  }
+  return $token;
 }
 
