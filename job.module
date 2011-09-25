@@ -107,6 +107,7 @@ function job_form_alter(&$form, $form_state, $form_id) {
       $found_result_field=0;
       if (isset($form['webform'])) {
         foreach ($form['webform']['#value']['components'] as $component) {
+          // hide the "result" and "result_code" fields which aren't meaningful for now
           if (($component['form_key']=='result') or ($component['form_key']=='result_code')) {
             continue;
           }
@@ -128,6 +129,11 @@ function job_form_alter(&$form, $form_state, $form_id) {
       }
 
     } else if (preg_match('/^webform_client_form_\d+$/', $form_id)) {
+
+      $form['job_submit_link'] = array(
+        '#type' => 'markup',
+        '#markup' => '<div style="float:right">' . l(t('Link to submit with defaults'), 'job/'.$form['#node']->nid.'/submit') . '</div>',
+      );
       // add CSS to hide the result & result_code webform components when displaying the node webform
       drupal_add_css(drupal_get_path('module', 'job') . '/job.css');
     }
@@ -252,5 +258,33 @@ function _job_webform_component_mapping($node) {
     $mapping[$key] = $i;
   }
   return $mapping;
+}
+
+
+/**
+ *  For submitting webforms programatically
+ *  Calls the webform submit handler for saving the form values and sending e-mails
+ */
+function job_webform_submit($nid) {
+  $node = node_load($nid);
+  if (!isset($node->webform)) {
+    die('no webform at this node XXX');
+    return;
+  }
+  $form = webform_client_form($form, NULL, $node, NULL);
+
+  $form_state = array();
+  $form_state['webform_completed'] = TRUE;
+  $form_state['values']['details']['uid'] = 0;
+  #'data' => webform_submission_data($node, $form_state['values']['submitted']),
+  
+  // load the webform's components and set submitted values to defaults
+  foreach($node->webform['components'] as $cid => $component) {
+    $form_state['values']['submitted'][$cid] = $component['value'];
+  }
+
+  // submit the webform
+  webform_client_form_submit($form, $form_state);
+
 }
 
