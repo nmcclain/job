@@ -34,7 +34,7 @@ function job_menu() {
   $items['job/%/submit/%'] = array(
     'title' => 'Submit Job',
     'description' => 'Submit a Job programatically with a URL.',
-    'page callback' => 'job_webform_submit',
+    'page callback' => 'job_webform_url_submit',
     'page arguments' => array(1, 3),
     'access arguments' => array('use job'), 
   );
@@ -275,6 +275,18 @@ function _job_webform_component_mapping($node) {
   return $mapping;
 }
 
+function job_webform_url_submit($nid, $token=0) {
+  $validtoken = job_fetch_global_token();
+  if ($token != $validtoken)  {
+    drupal_json_output(array(
+      'success' => FALSE,
+      'message' => 'Bad token'
+    ));
+    dd('invalid token XXX');
+    return;
+  }
+  job_webform_submit($nid);
+}
 
 /**
  *  For submitting webforms programatically
@@ -287,16 +299,6 @@ function job_webform_submit($nid, $token=0) {
       'success' => FALSE,
       'message' => 'no webform at this node XXX'
     ));
-    return;
-  }
-
-  $validtoken = job_fetch_global_token();
-  if ($token != $validtoken)  {
-    drupal_json_output(array(
-      'success' => FALSE,
-      'message' => 'Bad token'
-    ));
-    dd('invalid token XXX');
     return;
   }
 
@@ -313,6 +315,8 @@ function job_webform_submit($nid, $token=0) {
   foreach($node->webform['components'] as $cid => $component) {
     $form_state['values']['submitted'][$cid] = $component['value'];
   }
+
+  // XXX validate defaults will succeed with: webform_client_form_validate
 
   // submit the webform
   webform_client_form_submit($form, $form_state);
