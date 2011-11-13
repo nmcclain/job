@@ -149,10 +149,13 @@ function job_form_alter(&$form, $form_state, $form_id) {
 
     } else if (preg_match('/^webform_client_form_\d+$/', $form_id)) {
 
-      $form['job_submit_link'] = array(
-        '#type' => 'markup',
-        '#markup' => '<div id="job-submit-link-container" style="float:right">' . l(t('Link to submit with defaults'), 'job/'.$form['#node']->nid.'/submit/'.job_fetch_token(), array('attributes' => array('id' => 'job-submit-link'))) . '</div><script>jQuery("#job-submit-link").click(function() { jQuery("#job-submit-link-container").html("<input id=\"job-submit-link-input\" size=60 type=text value=\"'.$base_url.'/job/'.$form['#node']->nid.'/submit/'.job_fetch_token().'\">"); jQuery("#job-submit-link-input").select(); return false;} );</script>',
-      );
+      if (user_access('use job token')) {
+        $form['job_submit_link'] = array(
+          '#type' => 'markup',
+          '#markup' => '<div id="job-submit-link-container" style="float:right">' . l(t('Link to submit with defaults'), 'job/'.$form['#node']->nid.'/submit/'.job_fetch_token(), array('attributes' => array('id' => 'job-submit-link'))) . '</div><script>jQuery("#job-submit-link").click(function() { jQuery("#job-submit-link-container").html("<input id=\"job-submit-link-input\" size=60 type=text value=\"'.$base_url.'/job/'.$form['#node']->nid.'/submit/'.job_fetch_token().'\">"); jQuery("#job-submit-link-input").select(); return false;} );</script>',
+        );
+      }
+
       // add CSS to hide the result & result_code webform components when displaying the node webform
       drupal_add_css(drupal_get_path('module', 'job') . '/job.css');
     }
